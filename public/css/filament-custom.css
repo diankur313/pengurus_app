@@ -1,0 +1,55 @@
+/* Container untuk grup yang menjorok */
+.nested-menu-parent {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    border-radius: 0.5rem;
+    transition: background-color 0.2s;
+    margin-left: 0.5rem;
+}
+
+.nested-menu-parent:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dark .nested-menu-parent {
+    color: #d1d5db;
+}
+
+.dark .nested-menu-parent:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Tanda Panah */
+.nested-arrow {
+    transition: transform 0.2s;
+}
+
+.nested-arrow.open {
+    transform: rotate(180deg);
+}
+
+/* Sub-menu container */
+.nested-menu-content {
+    display: none;
+    margin-left: 1.5rem;
+    border-left: 1px solid #e5e7eb;
+}
+
+.dark .nested-menu-content {
+    border-left: 1px solid #374151;
+}
+
+.nested-menu-content.open {
+    display: block;
+}
+
+/* Sembunyikan item asli yang akan kita pindahkan ke dalam content */
+.hide-item {
+    display: none !important;
+}
