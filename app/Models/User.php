@@ -10,11 +10,12 @@ use Illuminate\Notifications\Notifiable;
 use Filament\Models\Contracts\HasName;
 use Filament\Models\Contracts\HasAvatar;
 use Spatie\Permission\Traits\HasRoles;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements HasName, HasAvatar
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
     public function getFilamentName(): string
     {

@@ -21,3 +21,7 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Caveman AI skill (server-local, tidak perlu di-commit)
+/GEMINI.md
+/skills/
