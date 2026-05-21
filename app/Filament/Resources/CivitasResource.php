@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\CivitasResource\Pages;
 use App\Models\CivitasPendidikan;
 use App\Models\MemberPpab;
+use App\Models\MemberLama;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -81,21 +82,57 @@ class CivitasResource extends Resource
                     ->defaultImageUrl(fn ($record) => 'https://ui-avatars.com/api/?name=' . urlencode($record->name ?? 'U') . '&color=FFFFFF&background=09090b'),
                 TextColumn::make('name')
                     ->label('Nama')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query->where(function ($q) use ($search) {
+                            $q->where(function ($q1) use ($search) {
+                                $q1->where('source_type', 'table_ppab_baru')
+                                   ->whereIn('source_id', MemberPpab::where('name', 'like', "%{$search}%")->pluck('id_member'));
+                            })->orWhere(function ($q2) use ($search) {
+                                $q2->where('source_type', 'table_member_lama')
+                                   ->whereIn('source_id', MemberLama::where('member_name', 'like', "%{$search}%")->pluck('member_no'));
+                            });
+                        });
+                    }),
                 TextColumn::make('gender')
                     ->label('Gender')
                     ->formatStateUsing(fn ($state) => ucfirst($state))
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query->where(function ($q) use ($search) {
+                            $q->where(function ($q1) use ($search) {
+                                $q1->where('source_type', 'table_ppab_baru')
+                                   ->whereIn('source_id', MemberPpab::where('gender', 'like', "%{$search}%")->pluck('id_member'));
+                            })->orWhere(function ($q2) use ($search) {
+                                $q2->where('source_type', 'table_member_lama')
+                                   ->whereIn('source_id', MemberLama::where('member_gend', 'like', "%{$search}%")->pluck('member_no'));
+                            });
+                        });
+                    }),
                 TextColumn::make('email')
                     ->label('Email')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query->where(function ($q) use ($search) {
+                            $q->where(function ($q1) use ($search) {
+                                $q1->where('source_type', 'table_ppab_baru')
+                                   ->whereIn('source_id', MemberPpab::where('email', 'like', "%{$search}%")->pluck('id_member'));
+                            })->orWhere(function ($q2) use ($search) {
+                                $q2->where('source_type', 'table_member_lama')
+                                   ->whereIn('source_id', MemberLama::where('member_emai', 'like', "%{$search}%")->pluck('member_no'));
+                            });
+                        });
+                    }),
                 TextColumn::make('angkatan')
                     ->label('Angkatan')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query->where(function ($q) use ($search) {
+                            $q->where(function ($q1) use ($search) {
+                                $q1->where('source_type', 'table_ppab_baru')
+                                   ->whereIn('source_id', MemberPpab::where('nama_angkatan', 'like', "%{$search}%")->pluck('id_member'));
+                            })->orWhere(function ($q2) use ($search) {
+                                $q2->where('source_type', 'table_member_lama')
+                                   ->whereIn('source_id', MemberLama::where('member_nama_angkatan', 'like', "%{$search}%")->pluck('member_no'));
+                            });
+                        });
+                    }),
                 TextColumn::make('level_angkatan')
                     ->label('Level')
                     ->formatStateUsing(fn ($state) => ucfirst($state))
