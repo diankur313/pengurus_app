@@ -28,8 +28,12 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->firstOrFail();
 
-        // Optional: Check if user has teacher/admin role if needed
-        // if (!$user->hasRole(['super_admin', 'pengurus'])) { ... }
+        if (!$user->can('mobile_login')) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda tidak memiliki hak akses untuk masuk ke aplikasi mobile.',
+            ], 403);
+        }
 
         $token = $user->createToken('mobile-scanner-token')->plainTextToken;
 
