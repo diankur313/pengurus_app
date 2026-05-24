@@ -42,6 +42,15 @@ class EducationScheduleResource extends Resource
                     ->searchable()
                     ->preload(),
 
+                Forms\Components\Select::make('quiz_id')
+                    ->label('Pilih Quiz')
+                    ->relationship('quiz', 'title', fn ($query) => $query->where('is_published', true))
+                    ->visible(fn (Forms\Get $get) => $get('type') === 'quiz')
+                    ->required(fn (Forms\Get $get) => $get('type') === 'quiz')
+                    ->searchable()
+                    ->preload()
+                    ->helperText('Pilih quiz master yang akan digunakan'),
+
                 Forms\Components\TextInput::make('title')
                     ->label('Judul')
                     ->required(),

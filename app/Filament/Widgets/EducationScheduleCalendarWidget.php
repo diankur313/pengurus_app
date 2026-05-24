@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\EducationSchedule;
+use App\Models\Quiz;
 use Saade\FilamentFullCalendar\Widgets\FullCalendarWidget;
 use Filament\Forms;
 use App\Models\Teacher;
@@ -39,21 +40,45 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
                     
                     // Format untuk tampilan readonly (Rentang Tanggal)
                     $dateRangeDisplay = '';
+                    $isSingleDay = false;
+
                     if ($start && $end) {
-                        // FullCalendar 'end' biasanya eksklusif (hari berikutnya 00:00), 
-                        // kita kurangi 1 hari untuk tampilan rentang yang inklusif jika allDay
-                        $displayEnd = $end->copy()->subDay();
-                        if ($start->format('Y-m-d') === $displayEnd->format('Y-m-d')) {
+                        // Jika klik 1 hari saja, FullCalendar mengirim start=end (misal keduanya 2026-05-25)
+                        // ATAU end = start + 1 hari (eksklusif). Kedua kasus = seleksi 1 hari.
+                        $isSameDay = $start->format('Y-m-d') === $end->format('Y-m-d');
+                        $isNextDay = $end->copy()->subDay()->format('Y-m-d') === $start->format('Y-m-d');
+                        $isSingleDay = $isSameDay || $isNextDay;
+
+                        if ($isSingleDay) {
                             $dateRangeDisplay = $start->format('d-m-Y');
                         } else {
+                            // Seleksi multi-hari — end eksklusif, kurangi 1 hari untuk tampilan inklusif
+                            $displayEnd = $end->copy()->subDay();
                             $dateRangeDisplay = $start->format('d-m-Y') . ' s/d ' . $displayEnd->format('d-m-Y');
+                        }
+                    }
+
+                    // Set default jam yang masuk akal (08:00 - 10:00)
+                    // FullCalendar mengirim 00:00 untuk allDay selection — tidak realistis untuk jadwal
+                    $formStart = $start;
+                    $formEnd = $end;
+
+                    if ($start && $end) {
+                        if ($isSingleDay) {
+                            // Klik 1 hari → Mulai 08:00, Selesai 10:00 di hari yang sama
+                            $formStart = $start->copy()->setTime(8, 0);
+                            $formEnd = $start->copy()->setTime(10, 0);
+                        } else {
+                            // Multi-hari → Mulai 08:00 hari pertama, Selesai 10:00 hari terakhir (inklusif)
+                            $formStart = $start->copy()->setTime(8, 0);
+                            $formEnd = $end->copy()->subDay()->setTime(10, 0);
                         }
                     }
 
                     $form->fill([
                         'selected_date_range' => $dateRangeDisplay,
-                        'start_at' => $start?->format('Y-m-d H:i') ?? null,
-                        'end_at' => $end?->format('Y-m-d H:i') ?? null,
+                        'start_at' => $formStart?->format('Y-m-d H:i') ?? null,
+                        'end_at' => $formEnd?->format('Y-m-d H:i') ?? null,
                     ]);
                 })
                 ->extraAttributes(['class' => 'hidden']), // Sembunyikan tombol di header
@@ -140,6 +165,15 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
                 ->visible(fn (Forms\Get $get) => $get('type') === 'pembelajaran')
                 ->searchable()
                 ->preload(),
+
+            Forms\Components\Select::make('quiz_id')
+                ->label('Pilih Quiz')
+                ->relationship('quiz', 'title', fn ($query) => $query->where('is_published', true))
+                ->visible(fn (Forms\Get $get) => $get('type') === 'quiz')
+                ->required(fn (Forms\Get $get) => $get('type') === 'quiz')
+                ->searchable()
+                ->preload()
+                ->helperText('Pilih quiz master yang akan digunakan'),
 
             Forms\Components\TextInput::make('title')
                 ->label('Judul')

@@ -11,6 +11,7 @@ class EducationSchedule extends Model
     protected $fillable = [
         'uuid',
         'teacher_id',
+        'quiz_id',
         'type',
         'title',
         'level',
@@ -42,5 +43,10 @@ class EducationSchedule extends Model
     public function educationMaterials(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(EducationMaterial::class);
+    }
+
+    public function quiz(): BelongsTo
+    {
+        return $this->belongsTo(Quiz::class);
     }
 }
