@@ -12,14 +12,11 @@ class Quiz extends Model
         'created_by',
         'title',
         'description',
-        'start_at',
-        'end_at',
+        'duration',
         'is_published',
     ];
 
     protected $casts = [
-        'start_at' => 'datetime',
-        'end_at' => 'datetime',
         'is_published' => 'boolean',
     ];
 

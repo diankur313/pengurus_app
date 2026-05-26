@@ -9,6 +9,13 @@ class Teacher extends Model
     protected $fillable = [
         'photo',
         'name',
+        'tempat_lahir',
+        'tanggal_lahir',
+        'gender',
         'education_history',
+    ];
+
+    protected $casts = [
+        'tanggal_lahir' => 'date',
     ];
 }

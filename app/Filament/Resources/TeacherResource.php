@@ -28,40 +28,60 @@ class TeacherResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Informasi Ustadz')
+                Forms\Components\Section::make('Foto')
                     ->schema([
                         Forms\Components\FileUpload::make('photo')
                             ->label('Foto')
                             ->image()
                             ->directory('teachers')
-                            ->maxSize(10240) // 10 MB
+                            ->maxSize(10240)
                             ->imageEditor()
                             ->afterStateUpdated(function ($state) {
                                 if (!$state) return;
-                                
                                 try {
-                                    $manager = new ImageManager(new Driver());
+                                    $manager  = new ImageManager(new Driver());
                                     $fullPath = Storage::disk('public')->path($state);
-                                    
-                                    $image = $manager->decode($fullPath);
-                                    
-                                    // Kompresi kualitas ke 60%
+                                    $image    = $manager->decode($fullPath);
                                     $image->save($fullPath, quality: 60);
-                                } catch (\Exception $e) {
-                                    // Log error if needed
-                                }
+                                } catch (\Exception $e) {}
                             }),
-                            
+                    ]),
+
+                Forms\Components\Section::make('Informasi Pribadi')
+                    ->schema([
                         Forms\Components\TextInput::make('name')
                             ->label('Nama Lengkap')
                             ->required()
-                            ->maxLength(255),
-                            
+                            ->maxLength(255)
+                            ->columnSpanFull(),
+
+                        Forms\Components\TextInput::make('tempat_lahir')
+                            ->label('Tempat Lahir')
+                            ->maxLength(100),
+
+                        Forms\Components\DatePicker::make('tanggal_lahir')
+                            ->label('Tanggal Lahir')
+                            ->native(false)
+                            ->displayFormat('d M Y')
+                            ->maxDate(now()),
+
+                        Forms\Components\Select::make('gender')
+                            ->label('Jenis Kelamin')
+                            ->options([
+                                'pria'   => 'Pria',
+                                'wanita' => 'Wanita',
+                            ])
+                            ->native(false),
+                    ])
+                    ->columns(3),
+
+                Forms\Components\Section::make('Riwayat Pendidikan')
+                    ->schema([
                         Forms\Components\RichEditor::make('education_history')
                             ->label('Riwayat Pendidikan')
                             ->required()
                             ->columnSpanFull(),
-                    ])
+                    ]),
             ]);
     }
 
@@ -72,20 +92,51 @@ class TeacherResource extends Resource
                 Tables\Columns\ImageColumn::make('photo')
                     ->label('Foto')
                     ->circular()
+                    ->size(64)
                     ->defaultImageUrl(fn ($record) => 'https://ui-avatars.com/api/?name=' . urlencode($record->name) . '&color=FFFFFF&background=0369a1'),
-                    
+
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nama Lengkap')
                     ->searchable()
                     ->sortable(),
-                    
+
+                Tables\Columns\TextColumn::make('tempat_lahir')
+                    ->label('Tempat Lahir')
+                    ->searchable()
+                    ->placeholder('-'),
+
+                Tables\Columns\TextColumn::make('tanggal_lahir')
+                    ->label('Tanggal Lahir')
+                    ->date('d M Y')
+                    ->sortable()
+                    ->placeholder('-'),
+
+                Tables\Columns\TextColumn::make('gender')
+                    ->label('Jenis Kelamin')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'pria'   => 'Pria',
+                        'wanita' => 'Wanita',
+                        default  => '-',
+                    })
+                    ->color(fn (?string $state): string => match ($state) {
+                        'pria'   => 'info',
+                        'wanita' => 'pink',
+                        default  => 'gray',
+                    }),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('gender')
+                    ->label('Jenis Kelamin')
+                    ->options([
+                        'pria'   => 'Pria',
+                        'wanita' => 'Wanita',
+                    ]),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

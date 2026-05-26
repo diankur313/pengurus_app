@@ -44,12 +44,21 @@ class EducationScheduleResource extends Resource
 
                 Forms\Components\Select::make('quiz_id')
                     ->label('Pilih Quiz')
-                    ->relationship('quiz', 'title', fn ($query) => $query->where('is_published', true))
+                    ->options(function (?EducationSchedule $record) {
+                        $usedQuizIds = \App\Models\EducationSchedule::query()
+                            ->whereNotNull('quiz_id')
+                            ->when($record?->id, fn ($q) => $q->where('id', '!=', $record->id))
+                            ->pluck('quiz_id')
+                            ->toArray();
+
+                        return \App\Models\Quiz::where('is_published', true)
+                            ->whereNotIn('id', $usedQuizIds)
+                            ->pluck('title', 'id');
+                    })
                     ->visible(fn (Forms\Get $get) => $get('type') === 'quiz')
                     ->required(fn (Forms\Get $get) => $get('type') === 'quiz')
                     ->searchable()
-                    ->preload()
-                    ->helperText('Pilih quiz master yang akan digunakan'),
+                    ->helperText('Hanya quiz yang belum digunakan akan ditampilkan'),
 
                 Forms\Components\TextInput::make('title')
                     ->label('Judul')

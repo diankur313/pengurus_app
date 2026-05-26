@@ -41,22 +41,16 @@ class QuizResource extends Resource
                             ->rows(3)
                             ->columnSpanFull(),
 
-                        Forms\Components\DateTimePicker::make('start_at')
-                            ->label('Mulai')
+                        Forms\Components\TextInput::make('duration')
+                            ->label('Durasi (MM:DD)')
                             ->required()
-                            ->native(false)
-                            ->seconds(false),
-
-                        Forms\Components\DateTimePicker::make('end_at')
-                            ->label('Selesai')
-                            ->required()
-                            ->native(false)
-                            ->seconds(false)
-                            ->after('start_at'),
+                            ->placeholder('15:00')
+                            ->helperText('Masukkan durasi dalam format Menit:Detik (contoh: 15:00 untuk 15 menit)'),
 
                         Forms\Components\Toggle::make('is_published')
                             ->label('Publikasikan')
                             ->default(false)
+                            ->inline(false)
                             ->helperText('Aktifkan agar quiz bisa dikerjakan peserta'),
                     ])->columns(2),
 
@@ -137,14 +131,9 @@ class QuizResource extends Resource
                     ->sortable()
                     ->alignCenter(),
 
-                TextColumn::make('start_at')
-                    ->label('Mulai')
-                    ->dateTime('d M Y H:i')
-                    ->sortable(),
-
-                TextColumn::make('end_at')
-                    ->label('Selesai')
-                    ->dateTime('d M Y H:i')
+                TextColumn::make('duration')
+                    ->label('Durasi (MM:DD)')
+                    ->searchable()
                     ->sortable(),
 
                 IconColumn::make('is_published')
