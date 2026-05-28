@@ -3,9 +3,11 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\UserResource\Pages;
+use App\Jobs\SendInviteEmailJob;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -240,11 +242,50 @@ class UserResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\Action::make('invite')
+                    ->label('Invite')
+                    ->icon('heroicon-o-envelope')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('Kirim Undangan Email')
+                    ->modalDescription(fn ($record) => "Kirim email undangan beserta password baru ke {$record->email}?")
+                    ->modalSubmitActionLabel('Ya, Kirim Sekarang')
+                    ->action(function ($record) {
+                        SendInviteEmailJob::dispatch($record);
+                        Notification::make()
+                            ->title('Undangan Dijadwalkan!')
+                            ->body("Email undangan akan segera dikirim ke {$record->email}.")
+                            ->success()
+                            ->send();
+                    }),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\BulkAction::make('bulk_invite')
+                        ->label('Invite Selected')
+                        ->icon('heroicon-o-paper-airplane')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading('Kirim Undangan Massal')
+                        ->modalDescription('Email undangan beserta password baru akan dikirim ke semua user terpilih secara bertahap (jeda 5 detik per email) untuk menghindari deteksi spam.')
+                        ->modalSubmitActionLabel('Ya, Kirim Semua')
+                        ->action(function ($records) {
+                            $delay = 0;
+                            foreach ($records as $user) {
+                                SendInviteEmailJob::dispatch($user)
+                                    ->delay(now()->addSeconds($delay));
+                                $delay += 5;
+                            }
+                            $count = count($records);
+                            Notification::make()
+                                ->title('Bulk Invite Dijadwalkan!')
+                                ->body("{$count} email undangan akan dikirim secara bertahap.")
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);

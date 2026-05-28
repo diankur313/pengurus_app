@@ -3,11 +3,13 @@
 namespace App\Filament\Widgets;
 
 use App\Models\EducationSchedule;
-use App\Models\Quiz;
-use Saade\FilamentFullCalendar\Widgets\FullCalendarWidget;
+use App\Models\User;
+use App\Services\GoogleMeetService;
 use Filament\Forms;
-use App\Models\Teacher;
+use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
+use Saade\FilamentFullCalendar\Widgets\FullCalendarWidget;
 
 class EducationScheduleCalendarWidget extends FullCalendarWidget
 {
@@ -19,14 +21,14 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
     public Model|string|null $model = EducationSchedule::class;
 
     /**
-     * Konfigurasi FullCalendar untuk menyeragamkan layout
+     * Konfigurasi FullCalendar
      */
     public function config(): array
     {
         return [
             'displayEventTime' => false,
-            'eventDisplay' => 'block',
-            'selectable' => true,
+            'eventDisplay'     => 'block',
+            'selectable'       => true,
         ];
     }
 
@@ -36,52 +38,51 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
             \Saade\FilamentFullCalendar\Actions\CreateAction::make()
                 ->mountUsing(function (\Filament\Forms\Form $form, array $arguments) {
                     $start = isset($arguments['start']) ? \Illuminate\Support\Carbon::parse($arguments['start']) : null;
-                    $end = isset($arguments['end']) ? \Illuminate\Support\Carbon::parse($arguments['end']) : null;
-                    
-                    // Format untuk tampilan readonly (Rentang Tanggal)
+                    $end   = isset($arguments['end'])   ? \Illuminate\Support\Carbon::parse($arguments['end'])   : null;
+
                     $dateRangeDisplay = '';
-                    $isSingleDay = false;
+                    $isSingleDay      = false;
 
                     if ($start && $end) {
-                        // Jika klik 1 hari saja, FullCalendar mengirim start=end (misal keduanya 2026-05-25)
-                        // ATAU end = start + 1 hari (eksklusif). Kedua kasus = seleksi 1 hari.
-                        $isSameDay = $start->format('Y-m-d') === $end->format('Y-m-d');
-                        $isNextDay = $end->copy()->subDay()->format('Y-m-d') === $start->format('Y-m-d');
+                        $isSameDay   = $start->format('Y-m-d') === $end->format('Y-m-d');
+                        $isNextDay   = $end->copy()->subDay()->format('Y-m-d') === $start->format('Y-m-d');
                         $isSingleDay = $isSameDay || $isNextDay;
 
                         if ($isSingleDay) {
                             $dateRangeDisplay = $start->format('d-m-Y');
                         } else {
-                            // Seleksi multi-hari — end eksklusif, kurangi 1 hari untuk tampilan inklusif
-                            $displayEnd = $end->copy()->subDay();
+                            $displayEnd       = $end->copy()->subDay();
                             $dateRangeDisplay = $start->format('d-m-Y') . ' s/d ' . $displayEnd->format('d-m-Y');
                         }
                     }
 
-                    // Set default jam yang masuk akal (08:00 - 10:00)
-                    // FullCalendar mengirim 00:00 untuk allDay selection — tidak realistis untuk jadwal
                     $formStart = $start;
-                    $formEnd = $end;
+                    $formEnd   = $end;
 
                     if ($start && $end) {
                         if ($isSingleDay) {
-                            // Klik 1 hari → Mulai 08:00, Selesai 10:00 di hari yang sama
                             $formStart = $start->copy()->setTime(8, 0);
-                            $formEnd = $start->copy()->setTime(10, 0);
+                            $formEnd   = $start->copy()->setTime(10, 0);
                         } else {
-                            // Multi-hari → Mulai 08:00 hari pertama, Selesai 10:00 hari terakhir (inklusif)
                             $formStart = $start->copy()->setTime(8, 0);
-                            $formEnd = $end->copy()->subDay()->setTime(10, 0);
+                            $formEnd   = $end->copy()->subDay()->setTime(10, 0);
                         }
                     }
 
                     $form->fill([
                         'selected_date_range' => $dateRangeDisplay,
-                        'start_at' => $formStart?->format('Y-m-d H:i') ?? null,
-                        'end_at' => $formEnd?->format('Y-m-d H:i') ?? null,
+                        'start_at'            => $formStart?->format('Y-m-d H:i') ?? null,
+                        'end_at'              => $formEnd?->format('Y-m-d H:i') ?? null,
+                        'attendance_mode'     => 'offline',
                     ]);
                 })
-                ->extraAttributes(['class' => 'hidden']), // Sembunyikan tombol di header
+                ->after(function (EducationSchedule $record) {
+                    // Jika Online: generate Meet link
+                    if ($record->attendance_mode === 'online' && !$record->meeting_link) {
+                        static::generateMeetLinkForRecord($record);
+                    }
+                })
+                ->extraAttributes(['class' => 'hidden']),
         ];
     }
 
@@ -91,22 +92,22 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
             ->where('start_at', '>=', $fetchInfo['start'])
             ->where('end_at', '<=', $fetchInfo['end'])
             ->get()
-            ->map(
-                function (EducationSchedule $schedule) {
-                    $angkatan = $schedule->level === 'dasar' ? 'Dasar' : 'Lanjutan';
-                    $durasi = $schedule->start_at->format('H:i') . ' - ' . $schedule->end_at->format('H:i');
-                    $ustadz = $schedule->teacher ? ' (' . $schedule->teacher->name . ')' : '';
+            ->map(function (EducationSchedule $schedule) {
+                $angkatan = $schedule->level === 'general' ? 'General' : ($schedule->level === 'dasar' ? 'Dasar' : 'Lanjutan');
+                $durasi      = $schedule->start_at->format('H:i') . ' - ' . $schedule->end_at->format('H:i');
+                $ustadz      = $schedule->teacher ? ' (' . $schedule->teacher->name . ')' : '';
+                $kehadiran   = $schedule->attendance_mode === 'online' ? ' 🎥' : '';
+                $meetStatus  = ($schedule->attendance_mode === 'online' && $schedule->meeting_link) ? ' ✓' : '';
 
-                    return [
-                        'id' => $schedule->id,
-                        'title' => "Angkatan: {$angkatan}\nJudul: {$schedule->title}{$ustadz}\nDurasi: {$durasi}",
-                        'start' => $schedule->start_at,
-                        'end' => $schedule->end_at,
-                        'allDay' => false,
-                        'color' => $schedule->type === 'pembelajaran' ? '#0369a1' : '#b91c1c',
-                    ];
-                }
-            )
+                return [
+                    'id'    => $schedule->id,
+                    'title' => "Angkatan: {$angkatan}\nJudul: {$schedule->title}{$ustadz}{$kehadiran}{$meetStatus}\nDurasi: {$durasi}",
+                    'start' => $schedule->start_at,
+                    'end'   => $schedule->end_at,
+                    'allDay' => false,
+                    'color'  => $schedule->type === 'pembelajaran' ? '#0369a1' : '#b91c1c',
+                ];
+            })
             ->all();
     }
 
@@ -125,17 +126,11 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
         return auth()->user()?->can('delete_education::schedule') ?? false;
     }
 
-    /**
-     * Event yang dipanggil setelah data berhasil disimpan (create/edit)
-     */
     protected function onFormSubmitted(): void
     {
         $this->refreshEvents();
     }
 
-    /**
-     * Event yang dipanggil setelah data berhasil dihapus
-     */
     protected function onEventDeleted(): void
     {
         $this->refreshEvents();
@@ -149,14 +144,30 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
                 ->readonly()
                 ->dehydrated(false),
 
-            Forms\Components\Select::make('type')
-                ->label('Tipe')
-                ->options([
-                    'pembelajaran' => 'Pembelajaran',
-                    'quiz' => 'Quiz',
-                ])
-                ->required()
-                ->live(),
+            // ─── Row 1: Tipe + Kehadiran ──────────────────────────────────
+            Forms\Components\Grid::make(2)->schema([
+
+                Forms\Components\Radio::make('type')
+                    ->label('Tipe')
+                    ->options([
+                        'pembelajaran' => 'Pembelajaran',
+                        'quiz'         => 'Quiz',
+                    ])
+                    ->required()
+                    ->live()
+                    ->inline(),
+
+                Forms\Components\Radio::make('attendance_mode')
+                    ->label('Kehadiran')
+                    ->options([
+                        'offline' => 'Offline',
+                        'online'  => 'Online',
+                    ])
+                    ->default('offline')
+                    ->required()
+                    ->live()
+                    ->inline(),
+            ]),
 
             Forms\Components\Select::make('teacher_id')
                 ->label('Ustadz')
@@ -179,25 +190,124 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
                 ->label('Judul')
                 ->required(),
 
-            Forms\Components\Radio::make('level')
+            Forms\Components\Select::make('level')
                 ->label('Angkatan')
                 ->options([
-                    'dasar' => 'Angkatan Dasar',
+                    'general'  => 'General (Dasar dan Lanjutan)',
+                    'dasar'    => 'Angkatan Dasar',
                     'lanjutan' => 'Angkatan Lanjutan',
                 ])
-                ->required(),
+                ->required()
+                ->searchable(),
 
-            Forms\Components\Grid::make()
+            Forms\Components\Grid::make(2)->schema([
+                Forms\Components\DateTimePicker::make('start_at')
+                    ->label('Mulai')
+                    ->required()
+                    ->seconds(false)
+                    ->live(),
+                Forms\Components\DateTimePicker::make('end_at')
+                    ->label('Selesai')
+                    ->required()
+                    ->seconds(false),
+            ]),
+
+            // ─── Google Meet Settings ─────────────────────────────────────
+            Forms\Components\Section::make('🎥 Pengaturan Google Meet')
                 ->schema([
-                    Forms\Components\DateTimePicker::make('start_at')
-                        ->label('Mulai')
-                        ->required()
-                        ->seconds(false),
-                    Forms\Components\DateTimePicker::make('end_at')
-                        ->label('Selesai')
-                        ->required()
-                        ->seconds(false),
-                ]),
+
+                    Forms\Components\Select::make('meet_co_host_email')
+                        ->label('Co-Host')
+                        ->helperText('Pengguna yang bisa mengelola meeting (mute, kick, share screen). Harus memiliki akun Google.')
+                        ->options(function () {
+                            $currentUser = Auth::user();
+                            if (!$currentUser) return [];
+                            return User::whereHas('roles', function ($q) use ($currentUser) {
+                                $q->whereIn('name', $currentUser->roles->pluck('name'));
+                            })
+                                ->where('id', '!=', $currentUser->id)
+                                ->pluck('email', 'email');
+                        })
+                        ->searchable()
+                        ->nullable()
+                        ->placeholder('Pilih co-host (opsional)'),
+
+                    Forms\Components\Radio::make('meet_access_type')
+                        ->label('Akses Meeting')
+                        ->helperText('Terbuka = semua bisa join langsung. Terpercaya = hanya org internal langsung, ext harus knock. Terbatas = semua harus minta izin masuk.')
+                        ->options([
+                            'OPEN'       => 'Terbuka — semua bisa join langsung',
+                            'TRUSTED'    => 'Terpercaya — internal langsung, external harus knock',
+                            'RESTRICTED' => 'Terbatas — semua harus minta izin masuk',
+                        ])
+                        ->default('OPEN')
+                        ->required(),
+
+                    Forms\Components\Radio::make('meet_moderation')
+                        ->label('Moderasi')
+                        ->helperText('Tanpa moderasi = semua peserta setara. Host & Co-Host only = hanya host yang bisa kontrol fitur meeting.')
+                        ->options([
+                            'OFF'         => 'Tanpa moderasi — semua peserta setara',
+                            'COHOST_ONLY' => 'Hanya Host & Co-Host yang bisa kontrol',
+                        ])
+                        ->default('OFF')
+                        ->required(),
+
+                    Forms\Components\Textarea::make('meet_description')
+                        ->label('Deskripsi Meeting')
+                        ->helperText('Tampil di detail event Google Calendar. Bisa berisi instruksi atau link materi.')
+                        ->rows(3)
+                        ->placeholder('Contoh: Harap siapkan buku catatan.'),
+
+                    Forms\Components\Grid::make(2)->schema([
+                        Forms\Components\Toggle::make('send_reminder')
+                            ->label('📧 Kirim Reminder Email')
+                            ->helperText('Email pengingat ke semua peserta sesuai angkatan jadwal.')
+                            ->default(false)
+                            ->live(),
+
+                        Forms\Components\TextInput::make('reminder_before')
+                            ->label('Waktu Reminder')
+                            ->helperText('Format HH:MM sebelum jadwal dimulai. Contoh: 00:15 = 15 menit, 01:00 = 1 jam.')
+                            ->placeholder('00:15')
+                            ->default('00:15')
+                            ->regex('/^\d{2}:\d{2}$/')
+                            ->visible(fn (Forms\Get $get) => (bool) $get('send_reminder')),
+                    ]),
+                ])
+                ->visible(fn (Forms\Get $get) => $get('attendance_mode') === 'online')
+                ->collapsible(),
         ];
+    }
+
+    /**
+     * Generate Meet link dan simpan ke record.
+     */
+    protected static function generateMeetLinkForRecord(EducationSchedule $record): void
+    {
+        try {
+            $service              = new GoogleMeetService();
+            [$link, $eventId, $spaceName] = $service->createMeeting($record);
+
+            if ($link) {
+                $record->update([
+                    'meeting_link'      => $link,
+                    'google_event_id'   => $eventId,
+                    'google_space_name' => $spaceName,
+                ]);
+
+                Notification::make()
+                    ->title('Google Meet berhasil dibuat')
+                    ->body('Link: ' . $link)
+                    ->success()
+                    ->send();
+            }
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Gagal membuat Google Meet')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
     }
 }

@@ -22,6 +22,9 @@ yarn-error.log
 /.vscode
 /.zed
 
+# Google Cloud credentials (rahasia, jangan commit)
+/storage/app/google/
+
 # Caveman AI skill (server-local, tidak perlu di-commit)
 /GEMINI.md
 /skills/

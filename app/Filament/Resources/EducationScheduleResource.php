@@ -4,36 +4,58 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\EducationScheduleResource\Pages;
 use App\Models\EducationSchedule;
+use App\Models\User;
+use App\Services\GoogleMeetService;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class EducationScheduleResource extends Resource
 {
     protected static ?string $model = EducationSchedule::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-calendar';
-    protected static ?string $navigationLabel = 'Jadwal Pembelajaran';
-    protected static ?string $navigationGroup = 'Pendidikan';
-    protected static ?string $modelLabel = 'Jadwal Pembelajaran';
-    protected static ?string $pluralModelLabel = 'Jadwal Pembelajaran';
-    protected static ?int $navigationSort = 3;
+    protected static ?string $navigationIcon    = 'heroicon-o-calendar';
+    protected static ?string $navigationLabel   = 'Jadwal Pembelajaran';
+    protected static ?string $navigationGroup   = 'Pendidikan';
+    protected static ?string $modelLabel        = 'Jadwal Pembelajaran';
+    protected static ?string $pluralModelLabel  = 'Jadwal Pembelajaran';
+    protected static ?int    $navigationSort    = 3;
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('type')
-                    ->label('Tipe')
-                    ->options([
-                        'pembelajaran' => 'Pembelajaran',
-                        'quiz' => 'Quiz',
-                    ])
-                    ->required()
-                    ->live(),
 
+                // ─── Row 1: Tipe + Kehadiran ───────────────────────────────
+                Forms\Components\Grid::make(2)->schema([
+
+                    Forms\Components\Radio::make('type')
+                        ->label('Tipe')
+                        ->options([
+                            'pembelajaran' => 'Pembelajaran',
+                            'quiz'         => 'Quiz',
+                        ])
+                        ->required()
+                        ->live()
+                        ->inline(),
+
+                    Forms\Components\Radio::make('attendance_mode')
+                        ->label('Kehadiran')
+                        ->options([
+                            'offline' => 'Offline',
+                            'online'  => 'Online',
+                        ])
+                        ->default('offline')
+                        ->required()
+                        ->live()
+                        ->inline(),
+                ]),
+
+                // ─── Ustadz (jika Pembelajaran) ────────────────────────────
                 Forms\Components\Select::make('teacher_id')
                     ->label('Ustadz')
                     ->relationship('teacher', 'name')
@@ -42,10 +64,11 @@ class EducationScheduleResource extends Resource
                     ->searchable()
                     ->preload(),
 
+                // ─── Quiz (jika Quiz) ───────────────────────────────────────
                 Forms\Components\Select::make('quiz_id')
                     ->label('Pilih Quiz')
                     ->options(function (?EducationSchedule $record) {
-                        $usedQuizIds = \App\Models\EducationSchedule::query()
+                        $usedQuizIds = EducationSchedule::query()
                             ->whereNotNull('quiz_id')
                             ->when($record?->id, fn ($q) => $q->where('id', '!=', $record->id))
                             ->pluck('quiz_id')
@@ -60,25 +83,119 @@ class EducationScheduleResource extends Resource
                     ->searchable()
                     ->helperText('Hanya quiz yang belum digunakan akan ditampilkan'),
 
+                // ─── Judul ─────────────────────────────────────────────────
                 Forms\Components\TextInput::make('title')
                     ->label('Judul')
                     ->required(),
 
-                Forms\Components\Radio::make('level')
+                // ─── Angkatan ──────────────────────────────────────────────
+                Forms\Components\Select::make('level')
                     ->label('Angkatan')
                     ->options([
-                        'dasar' => 'Angkatan Dasar',
+                        'general'  => 'General (Dasar dan Lanjutan)',
+                        'dasar'    => 'Angkatan Dasar',
                         'lanjutan' => 'Angkatan Lanjutan',
                     ])
-                    ->required(),
+                    ->required()
+                    ->searchable(),
 
-                Forms\Components\DateTimePicker::make('start_at')
-                    ->label('Mulai')
-                    ->required(),
+                // ─── Waktu ─────────────────────────────────────────────────
+                Forms\Components\Grid::make(2)->schema([
+                    Forms\Components\DateTimePicker::make('start_at')
+                        ->label('Mulai')
+                        ->required()
+                        ->live(),
 
-                Forms\Components\DateTimePicker::make('end_at')
-                    ->label('Selesai')
-                    ->required(),
+                    Forms\Components\DateTimePicker::make('end_at')
+                        ->label('Selesai')
+                        ->required(),
+                ]),
+
+                // ─── Pengaturan Google Meet ─────────────────────────────────
+                Forms\Components\Section::make('🎥 Pengaturan Google Meet')
+                    ->description('Opsi ini hanya tersedia ketika mode Kehadiran diset ke Online.')
+                    ->schema([
+
+                        // Meeting link (readonly, auto-generated)
+                        Forms\Components\TextInput::make('meeting_link')
+                            ->label('Meeting Link')
+                            ->helperText('Auto-generated setelah jadwal disimpan sebagai Online.')
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->placeholder('Akan terisi otomatis…'),
+
+                        // Co-Host
+                        Forms\Components\Select::make('meet_co_host_email')
+                            ->label('Co-Host')
+                            ->helperText('Pengguna yang bisa mengelola meeting (mute, kick, share screen). Harus memiliki akun Google.')
+                            ->options(function () {
+                                $currentUser = Auth::user();
+                                if (!$currentUser) {
+                                    return [];
+                                }
+                                // User dengan role yang sama dengan pembuat jadwal
+                                return User::whereHas('roles', function ($q) use ($currentUser) {
+                                    $roleNames = $currentUser->roles->pluck('name');
+                                    $q->whereIn('name', $roleNames);
+                                })
+                                    ->where('id', '!=', $currentUser->id)
+                                    ->pluck('email', 'email');
+                            })
+                            ->searchable()
+                            ->nullable()
+                            ->placeholder('Pilih co-host (opsional)'),
+
+                        // Akses Meeting
+                        Forms\Components\Radio::make('meet_access_type')
+                            ->label('Akses Meeting')
+                            ->helperText('Terbuka = semua bisa join langsung. Terpercaya = hanya org internal langsung, ext harus knock. Terbatas = semua harus minta izin masuk.')
+                            ->options([
+                                'OPEN'       => 'Terbuka — semua bisa join langsung',
+                                'TRUSTED'    => 'Terpercaya — internal langsung, external harus knock',
+                                'RESTRICTED' => 'Terbatas — semua harus minta izin masuk',
+                            ])
+                            ->default('OPEN')
+                            ->required(),
+
+                        // Moderasi
+                        Forms\Components\Radio::make('meet_moderation')
+                            ->label('Moderasi')
+                            ->helperText('Tanpa moderasi = semua peserta setara. Host & Co-Host only = hanya host yang bisa kontrol fitur meeting.')
+                            ->options([
+                                'OFF'         => 'Tanpa moderasi — semua peserta setara',
+                                'COHOST_ONLY' => 'Hanya Host & Co-Host yang bisa kontrol',
+                            ])
+                            ->default('OFF')
+                            ->required(),
+
+                        // Deskripsi
+                        Forms\Components\Textarea::make('meet_description')
+                            ->label('Deskripsi Meeting')
+                            ->helperText('Tampil di detail event Google Calendar. Bisa berisi instruksi atau link materi.')
+                            ->rows(3)
+                            ->placeholder('Contoh: Harap siapkan buku catatan. Materi tersedia di portal e-SII.'),
+
+                        // ─── Reminder Email ─────────────────────────────────
+                        Forms\Components\Grid::make(2)->schema([
+                            Forms\Components\Toggle::make('send_reminder')
+                                ->label('📧 Kirim Reminder Email')
+                                ->helperText('Email pengingat ke semua peserta sesuai angkatan jadwal.')
+                                ->default(false)
+                                ->live(),
+
+                            Forms\Components\TextInput::make('reminder_before')
+                                ->label('Waktu Reminder')
+                                ->helperText('Format HH:MM sebelum jadwal dimulai. Contoh: 00:15 = 15 menit, 01:00 = 1 jam.')
+                                ->placeholder('00:15')
+                                ->default('00:15')
+                                ->regex('/^\d{2}:\d{2}$/')
+                                ->visible(fn (Forms\Get $get) => (bool) $get('send_reminder')),
+                        ]),
+
+                    ])
+                    ->visible(fn (Forms\Get $get) => $get('attendance_mode') === 'online')
+                    ->collapsible(),
+
             ]);
     }
 
@@ -87,27 +204,153 @@ class EducationScheduleResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('start_at')
-                    ->dateTime()
+                    ->dateTime('d M Y, H:i')
                     ->label('Mulai')
                     ->sortable(),
+
                 Tables\Columns\TextColumn::make('title')
                     ->label('Judul')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('type')
+                    ->searchable()
+                    ->limit(40),
+
+                Tables\Columns\BadgeColumn::make('type')
                     ->label('Tipe')
-                    ->formatStateUsing(fn (string $state): string => ucfirst($state)),
+                    ->formatStateUsing(fn (string $state): string => ucfirst($state))
+                    ->colors([
+                        'info'    => 'pembelajaran',
+                        'warning' => 'quiz',
+                    ]),
+
+                Tables\Columns\BadgeColumn::make('attendance_mode')
+                    ->label('Kehadiran')
+                    ->formatStateUsing(fn (string $state): string => ucfirst($state))
+                    ->colors([
+                        'success' => 'online',
+                        'gray'    => 'offline',
+                    ]),
+
+                Tables\Columns\TextColumn::make('meeting_link')
+                    ->label('Google Meet')
+                    ->default('Tidak tersedia')
+                    ->formatStateUsing(function (?string $state, EducationSchedule $record): string {
+                        if ($record->attendance_mode !== 'online' || empty($state) || $state === 'Tidak tersedia') {
+                            return 'Tidak tersedia';
+                        }
+                        return 'Join Meet';
+                    })
+                    ->badge()
+                    ->color(function (?string $state, EducationSchedule $record): string {
+                        if ($record->attendance_mode !== 'online' || empty($state) || $state === 'Tidak tersedia') {
+                            return 'gray';
+                        }
+                        return 'success';
+                    })
+                    ->url(fn (EducationSchedule $record): ?string => $record->meeting_link ?: null)
+                    ->openUrlInNewTab(),
+
                 Tables\Columns\TextColumn::make('teacher.name')
                     ->label('Ustadz'),
-                Tables\Columns\TextColumn::make('level')
+
+                Tables\Columns\BadgeColumn::make('level')
                     ->label('Angkatan')
-                    ->formatStateUsing(fn (string $state): string => ucfirst($state))
+                    ->formatStateUsing(function (string $state): string {
+                        if ($state === 'general') return 'General';
+                        return ucfirst($state);
+                    })
+                    ->colors([
+                        'success' => 'general',
+                        'primary' => 'dasar',
+                        'info'    => 'lanjutan',
+                    ])
                     ->sortable(),
             ])
             ->filters([])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->before(function (EducationSchedule $record, array $data, Tables\Actions\EditAction $action) {
+                        // Online → Offline: konfirmasi + hapus Meet link
+                        if (
+                            $record->attendance_mode === 'online' &&
+                            ($data['attendance_mode'] ?? 'offline') === 'offline' &&
+                            $record->google_event_id
+                        ) {
+                            try {
+                                $service = new GoogleMeetService();
+                                $service->deleteMeeting($record->google_event_id);
+                            } catch (\Exception $e) {
+                                // silent
+                            }
+                            $record->update([
+                                'meeting_link'     => null,
+                                'google_event_id'  => null,
+                                'google_space_name' => null,
+                                'reminder_sent'    => false,
+                            ]);
+                        }
+                    })
+                    ->after(function (EducationSchedule $record) {
+                        // Offline → Online: generate Meet link
+                        if ($record->attendance_mode === 'online' && !$record->meeting_link) {
+                            static::generateMeetLink($record);
+                        }
+
+                        // Tetap Online + waktu berubah: update Meet event
+                        if ($record->attendance_mode === 'online' && $record->meeting_link) {
+                            try {
+                                $service = new GoogleMeetService();
+                                $service->updateMeeting($record);
+                            } catch (\Exception $e) {
+                                // silent
+                            }
+                            // Reset reminder_sent jika waktu berubah
+                            $record->update(['reminder_sent' => false]);
+                        }
+                    }),
+
+                Tables\Actions\DeleteAction::make()
+                    ->before(function (EducationSchedule $record) {
+                        // Hapus Google Calendar event sebelum delete jadwal
+                        if ($record->google_event_id) {
+                            try {
+                                $service = new GoogleMeetService();
+                                $service->deleteMeeting($record->google_event_id);
+                            } catch (\Exception $e) {
+                                // silent
+                            }
+                        }
+                    }),
             ]);
+    }
+
+    /**
+     * Generate Meet link untuk jadwal baru / yang baru diubah ke Online.
+     */
+    protected static function generateMeetLink(EducationSchedule $record): void
+    {
+        try {
+            $service = new GoogleMeetService();
+            [$link, $eventId, $spaceName] = $service->createMeeting($record);
+
+            if ($link) {
+                $record->update([
+                    'meeting_link'      => $link,
+                    'google_event_id'   => $eventId,
+                    'google_space_name' => $spaceName,
+                ]);
+
+                Notification::make()
+                    ->title('Google Meet berhasil dibuat')
+                    ->body('Link: ' . $link)
+                    ->success()
+                    ->send();
+            }
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Gagal membuat Google Meet')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
     }
 
     public static function getPages(): array

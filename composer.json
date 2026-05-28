@@ -10,6 +10,7 @@
         "bezhansalleh/filament-shield": "^3.2",
         "chillerlan/php-qrcode": "^6.0",
         "filament/filament": "^3.2",
+        "google/apiclient": "^2.0",
         "intervention/image": "^4.0",
         "laravel/framework": "^11.31",
         "laravel/sanctum": "^4.3",
