@@ -116,10 +116,10 @@ class EducationScheduleResource extends Resource
                     ->description('Opsi ini hanya tersedia ketika mode Kehadiran diset ke Online.')
                     ->schema([
 
-                        // Meeting link (readonly, auto-generated)
+                        // Meeting link (readonly, auto-generated via OAuth2)
                         Forms\Components\TextInput::make('meeting_link')
                             ->label('Meeting Link')
-                            ->helperText('Auto-generated setelah jadwal disimpan sebagai Online.')
+                            ->helperText('Otomatis dibuat setelah jadwal disimpan sebagai Online.')
                             ->disabled()
                             ->dehydrated(false)
                             ->placeholder('Akan terisi otomatis…'),
@@ -127,13 +127,12 @@ class EducationScheduleResource extends Resource
                         // Co-Host
                         Forms\Components\Select::make('meet_co_host_email')
                             ->label('Co-Host')
-                            ->helperText('Pengguna yang bisa mengelola meeting (mute, kick, share screen). Harus memiliki akun Google.')
+                            ->helperText('Pengguna yang bisa mengelola meeting. Harus memiliki akun Google.')
                             ->options(function () {
                                 $currentUser = Auth::user();
                                 if (!$currentUser) {
                                     return [];
                                 }
-                                // User dengan role yang sama dengan pembuat jadwal
                                 return User::whereHas('roles', function ($q) use ($currentUser) {
                                     $roleNames = $currentUser->roles->pluck('name');
                                     $q->whereIn('name', $roleNames);
@@ -148,7 +147,6 @@ class EducationScheduleResource extends Resource
                         // Akses Meeting
                         Forms\Components\Radio::make('meet_access_type')
                             ->label('Akses Meeting')
-                            ->helperText('Terbuka = semua bisa join langsung. Terpercaya = hanya org internal langsung, ext harus knock. Terbatas = semua harus minta izin masuk.')
                             ->options([
                                 'OPEN'       => 'Terbuka — semua bisa join langsung',
                                 'TRUSTED'    => 'Terpercaya — internal langsung, external harus knock',
@@ -160,13 +158,13 @@ class EducationScheduleResource extends Resource
                         // Moderasi
                         Forms\Components\Radio::make('meet_moderation')
                             ->label('Moderasi')
-                            ->helperText('Tanpa moderasi = semua peserta setara. Host & Co-Host only = hanya host yang bisa kontrol fitur meeting.')
                             ->options([
                                 'OFF'         => 'Tanpa moderasi — semua peserta setara',
                                 'COHOST_ONLY' => 'Hanya Host & Co-Host yang bisa kontrol',
                             ])
                             ->default('OFF')
                             ->required(),
+
 
                         // Deskripsi
                         Forms\Components\Textarea::make('meet_description')
@@ -231,22 +229,26 @@ class EducationScheduleResource extends Resource
 
                 Tables\Columns\TextColumn::make('meeting_link')
                     ->label('Google Meet')
-                    ->default('Tidak tersedia')
+                    ->default('—')
                     ->formatStateUsing(function (?string $state, EducationSchedule $record): string {
-                        if ($record->attendance_mode !== 'online' || empty($state) || $state === 'Tidak tersedia') {
-                            return 'Tidak tersedia';
+                        if ($record->attendance_mode !== 'online' || empty($record->meeting_link)) {
+                            return '—';
                         }
                         return 'Join Meet';
                     })
                     ->badge()
                     ->color(function (?string $state, EducationSchedule $record): string {
-                        if ($record->attendance_mode !== 'online' || empty($state) || $state === 'Tidak tersedia') {
+                        if ($record->attendance_mode !== 'online' || empty($record->meeting_link)) {
                             return 'gray';
                         }
                         return 'success';
                     })
                     ->url(fn (EducationSchedule $record): ?string => $record->meeting_link ?: null)
-                    ->openUrlInNewTab(),
+                    ->openUrlInNewTab()
+                    ->copyable()
+                    ->copyableState(fn (EducationSchedule $record): string => $record->meeting_link ?? '')
+                    ->copyMessage('Link berhasil dicopy!')
+                    ->copyMessageDuration(2000),
 
                 Tables\Columns\TextColumn::make('teacher.name')
                     ->label('Ustadz'),
@@ -268,7 +270,7 @@ class EducationScheduleResource extends Resource
             ->actions([
                 Tables\Actions\EditAction::make()
                     ->before(function (EducationSchedule $record, array $data, Tables\Actions\EditAction $action) {
-                        // Online → Offline: konfirmasi + hapus Meet link
+                        // Online → Offline: hapus Calendar event + Meet space
                         if (
                             $record->attendance_mode === 'online' &&
                             ($data['attendance_mode'] ?? 'offline') === 'offline' &&
@@ -276,44 +278,66 @@ class EducationScheduleResource extends Resource
                         ) {
                             try {
                                 $service = new GoogleMeetService();
-                                $service->deleteMeeting($record->google_event_id);
+                                $service->deleteMeeting($record->google_event_id, $record->google_space_name);
                             } catch (\Exception $e) {
                                 // silent
                             }
                             $record->update([
-                                'meeting_link'     => null,
-                                'google_event_id'  => null,
+                                'meeting_link'      => null,
+                                'google_event_id'   => null,
                                 'google_space_name' => null,
-                                'reminder_sent'    => false,
+                                'reminder_sent'     => false,
                             ]);
                         }
                     })
                     ->after(function (EducationSchedule $record) {
-                        // Offline → Online: generate Meet link
-                        if ($record->attendance_mode === 'online' && !$record->meeting_link) {
-                            static::generateMeetLink($record);
+                        if ($record->attendance_mode !== 'online') {
+                            return;
                         }
 
-                        // Tetap Online + waktu berubah: update Meet event
-                        if ($record->attendance_mode === 'online' && $record->meeting_link) {
-                            try {
-                                $service = new GoogleMeetService();
-                                $service->updateMeeting($record);
-                            } catch (\Exception $e) {
-                                // silent
-                            }
-                            // Reset reminder_sent jika waktu berubah
-                            $record->update(['reminder_sent' => false]);
+                        // Offline → Online (belum ada link): generate
+                        if (!$record->meeting_link) {
+                            static::generateMeetLink($record);
+                            return;
                         }
+
+                        // Tetap Online: update Calendar event
+                        try {
+                            $service = new GoogleMeetService();
+                            $updated = $service->updateMeeting($record);
+
+                            if (!$updated) {
+                                // Event 404 — re-create
+                                $record->update([
+                                    'meeting_link'      => null,
+                                    'google_event_id'   => null,
+                                    'google_space_name' => null,
+                                ]);
+                                static::generateMeetLink($record);
+
+                                Notification::make()
+                                    ->title('Meeting link lama expired')
+                                    ->body('Link baru telah dibuat otomatis.')
+                                    ->warning()
+                                    ->send();
+                            }
+                        } catch (\Exception $e) {
+                            Notification::make()
+                                ->title('Gagal update Google Meet')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+
+                        $record->update(['reminder_sent' => false]);
                     }),
 
                 Tables\Actions\DeleteAction::make()
                     ->before(function (EducationSchedule $record) {
-                        // Hapus Google Calendar event sebelum delete jadwal
                         if ($record->google_event_id) {
                             try {
                                 $service = new GoogleMeetService();
-                                $service->deleteMeeting($record->google_event_id);
+                                $service->deleteMeeting($record->google_event_id, $record->google_space_name);
                             } catch (\Exception $e) {
                                 // silent
                             }
@@ -323,7 +347,7 @@ class EducationScheduleResource extends Resource
     }
 
     /**
-     * Generate Meet link untuk jadwal baru / yang baru diubah ke Online.
+     * Generate Meet link + Calendar event untuk jadwal Online.
      */
     protected static function generateMeetLink(EducationSchedule $record): void
     {

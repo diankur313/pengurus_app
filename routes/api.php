@@ -8,6 +8,17 @@ use App\Http\Controllers\Api\ScannerController;
 // Auth Routes
 Route::post('/auth/login', [AuthController::class, 'login']);
 
+// Cron endpoint — secured by CRON_SECRET token
+Route::get('/cron/update-withdrawable', function (Request $request) {
+    $secret = $request->header('X-Cron-Secret') ?? $request->query('secret');
+    if ($secret !== env('CRON_SECRET', 'changeme')) {
+        return response()->json(['error' => 'Unauthorized'], 401);
+    }
+    \Illuminate\Support\Facades\Artisan::call('payment:update-withdrawable');
+    $output = \Illuminate\Support\Facades\Artisan::output();
+    return response()->json(['status' => 'ok', 'output' => trim($output)]);
+});
+
 // Protected Routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);

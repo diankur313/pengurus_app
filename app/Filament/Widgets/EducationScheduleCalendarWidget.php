@@ -77,7 +77,7 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
                     ]);
                 })
                 ->after(function (EducationSchedule $record) {
-                    // Jika Online: generate Meet link
+                    // Jika Online: auto-generate Meet link
                     if ($record->attendance_mode === 'online' && !$record->meeting_link) {
                         static::generateMeetLinkForRecord($record);
                     }
@@ -129,11 +129,14 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
     protected function onFormSubmitted(): void
     {
         $this->refreshEvents();
+        // Refresh tabel di halaman ManageRecords
+        $this->dispatch('$refresh');
     }
 
     protected function onEventDeleted(): void
     {
         $this->refreshEvents();
+        $this->dispatch('$refresh');
     }
 
     public function getFormSchema(): array
@@ -216,9 +219,16 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
             Forms\Components\Section::make('🎥 Pengaturan Google Meet')
                 ->schema([
 
+                    Forms\Components\TextInput::make('meeting_link')
+                        ->label('Meeting Link')
+                        ->helperText('Otomatis dibuat setelah jadwal disimpan.')
+                        ->disabled()
+                        ->dehydrated(false)
+                        ->placeholder('Akan terisi otomatis…'),
+
                     Forms\Components\Select::make('meet_co_host_email')
                         ->label('Co-Host')
-                        ->helperText('Pengguna yang bisa mengelola meeting (mute, kick, share screen). Harus memiliki akun Google.')
+                        ->helperText('Pengguna yang bisa mengelola meeting.')
                         ->options(function () {
                             $currentUser = Auth::user();
                             if (!$currentUser) return [];
@@ -234,7 +244,6 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
 
                     Forms\Components\Radio::make('meet_access_type')
                         ->label('Akses Meeting')
-                        ->helperText('Terbuka = semua bisa join langsung. Terpercaya = hanya org internal langsung, ext harus knock. Terbatas = semua harus minta izin masuk.')
                         ->options([
                             'OPEN'       => 'Terbuka — semua bisa join langsung',
                             'TRUSTED'    => 'Terpercaya — internal langsung, external harus knock',
@@ -245,7 +254,6 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
 
                     Forms\Components\Radio::make('meet_moderation')
                         ->label('Moderasi')
-                        ->helperText('Tanpa moderasi = semua peserta setara. Host & Co-Host only = hanya host yang bisa kontrol fitur meeting.')
                         ->options([
                             'OFF'         => 'Tanpa moderasi — semua peserta setara',
                             'COHOST_ONLY' => 'Hanya Host & Co-Host yang bisa kontrol',
@@ -255,20 +263,19 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
 
                     Forms\Components\Textarea::make('meet_description')
                         ->label('Deskripsi Meeting')
-                        ->helperText('Tampil di detail event Google Calendar. Bisa berisi instruksi atau link materi.')
+                        ->helperText('Tampil di detail event Google Calendar.')
                         ->rows(3)
                         ->placeholder('Contoh: Harap siapkan buku catatan.'),
 
                     Forms\Components\Grid::make(2)->schema([
                         Forms\Components\Toggle::make('send_reminder')
                             ->label('📧 Kirim Reminder Email')
-                            ->helperText('Email pengingat ke semua peserta sesuai angkatan jadwal.')
                             ->default(false)
                             ->live(),
 
                         Forms\Components\TextInput::make('reminder_before')
                             ->label('Waktu Reminder')
-                            ->helperText('Format HH:MM sebelum jadwal dimulai. Contoh: 00:15 = 15 menit, 01:00 = 1 jam.')
+                            ->helperText('Format HH:MM sebelum jadwal.')
                             ->placeholder('00:15')
                             ->default('00:15')
                             ->regex('/^\d{2}:\d{2}$/')
@@ -281,12 +288,12 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
     }
 
     /**
-     * Generate Meet link dan simpan ke record.
+     * Generate Meet link + Calendar event untuk record baru.
      */
     protected static function generateMeetLinkForRecord(EducationSchedule $record): void
     {
         try {
-            $service              = new GoogleMeetService();
+            $service = new GoogleMeetService();
             [$link, $eventId, $spaceName] = $service->createMeeting($record);
 
             if ($link) {

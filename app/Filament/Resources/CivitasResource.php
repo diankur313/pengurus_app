@@ -6,8 +6,10 @@ use App\Filament\Resources\CivitasResource\Pages;
 use App\Models\CivitasPendidikan;
 use App\Models\MemberPpab;
 use App\Models\MemberLama;
+use App\Jobs\SendPortalInviteJob;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -143,10 +145,58 @@ class CivitasResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\Action::make('invite_portal')
+                    ->label('Undang Portal')
+                    ->icon('heroicon-o-envelope')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('Kirim Undangan Portal e-SII')
+                    ->modalDescription(fn ($record) => "Kirim email undangan login portal e-SII ke {$record->email}?")
+                    ->modalSubmitActionLabel('Ya, Kirim Sekarang')
+                    ->action(function ($record) {
+                        if (!$record->email) {
+                            Notification::make()
+                                ->title('Email tidak ditemukan')
+                                ->warning()
+                                ->send();
+                            return;
+                        }
+                        SendPortalInviteJob::dispatch($record);
+                        Notification::make()
+                            ->title('Undangan Dijadwalkan!')
+                            ->body("Email undangan portal akan segera dikirim ke {$record->email}.")
+                            ->success()
+                            ->send();
+                    }),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\BulkAction::make('bulk_invite_portal')
+                        ->label('Undang Portal Massal')
+                        ->icon('heroicon-o-paper-airplane')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading('Kirim Undangan Portal Massal')
+                        ->modalDescription('Email undangan portal e-SII akan dikirim ke semua civitas terpilih secara bertahap (jeda 5 detik per email) untuk menghindari spam.')
+                        ->modalSubmitActionLabel('Ya, Kirim Semua')
+                        ->action(function ($records) {
+                            $delay = 0;
+                            $sent = 0;
+                            foreach ($records as $civitas) {
+                                if (!$civitas->email) continue;
+                                SendPortalInviteJob::dispatch($civitas)
+                                    ->delay(now()->addSeconds($delay));
+                                $delay += 5;
+                                $sent++;
+                            }
+                            Notification::make()
+                                ->title('Bulk Invite Dijadwalkan!')
+                                ->body("{$sent} email undangan portal akan dikirim secara bertahap.")
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
