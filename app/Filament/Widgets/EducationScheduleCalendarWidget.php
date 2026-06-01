@@ -10,6 +10,7 @@ use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Saade\FilamentFullCalendar\Widgets\FullCalendarWidget;
+use Livewire\Attributes\On;
 
 class EducationScheduleCalendarWidget extends FullCalendarWidget
 {
@@ -81,6 +82,8 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
                     if ($record->attendance_mode === 'online' && !$record->meeting_link) {
                         static::generateMeetLinkForRecord($record);
                     }
+                    $this->dispatch('filament-fullcalendar--refresh');
+                    $this->dispatch('refreshTable');
                 })
                 ->extraAttributes(['class' => 'hidden']),
         ];
@@ -126,17 +129,60 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
         return auth()->user()?->can('delete_education::schedule') ?? false;
     }
 
+    #[On('refreshCalendar')]
+    public function refreshCalendar(): void
+    {
+        $this->dispatch('filament-fullcalendar--refresh');
+    }
+
     protected function onFormSubmitted(): void
     {
-        $this->refreshEvents();
-        // Refresh tabel di halaman ManageRecords
-        $this->dispatch('$refresh');
+        $this->dispatch('filament-fullcalendar--refresh');
+        $this->dispatch('refreshTable');
     }
 
     protected function onEventDeleted(): void
     {
-        $this->refreshEvents();
-        $this->dispatch('$refresh');
+        $this->dispatch('filament-fullcalendar--refresh');
+        $this->dispatch('refreshTable');
+    }
+
+    protected function modalActions(): array
+    {
+        return [
+            \Saade\FilamentFullCalendar\Actions\EditAction::make()
+                ->after(function (EducationSchedule $record) {
+                    if ($record->attendance_mode === 'online') {
+                        if (!$record->meeting_link) {
+                            static::generateMeetLinkForRecord($record);
+                        } else {
+                            try {
+                                $service = new GoogleMeetService();
+                                $service->updateMeeting($record);
+                            } catch (\Exception $e) {
+                                // silent
+                            }
+                        }
+                    }
+                    $this->dispatch('refreshTable');
+                }),
+            \Saade\FilamentFullCalendar\Actions\DeleteAction::make()
+                ->before(function (EducationSchedule $record) {
+                    // End Meet space + hapus Calendar event sebelum record dihapus
+                    if ($record->google_event_id) {
+                        try {
+                            $service = new GoogleMeetService();
+                            $service->deleteMeeting($record->google_event_id, $record->google_space_name);
+                        } catch (\Exception $e) {
+                            // silent — jangan block delete
+                        }
+                    }
+                })
+                ->after(function () {
+                    $this->dispatch('filament-fullcalendar--refresh');
+                    $this->dispatch('refreshTable');
+                }),
+        ];
     }
 
     public function getFormSchema(): array

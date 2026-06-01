@@ -52,6 +52,42 @@ class EducationSchedule extends Model
                 $model->uuid = Str::random(12);
             }
         });
+
+        // Hapus Google Calendar event & Meet space saat model didelete
+        static::deleting(function ($model) {
+            if ($model->google_event_id) {
+                try {
+                    $service = new \App\Services\GoogleMeetService();
+                    $service->deleteMeeting($model->google_event_id, $model->google_space_name);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Gagal menghapus Google Meet saat model deleting', [
+                        'schedule_id' => $model->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+        });
+
+        // Hapus Google Calendar event & Meet space jika diubah dari online ke offline
+        static::updating(function ($model) {
+            if ($model->isDirty('attendance_mode') && $model->attendance_mode === 'offline') {
+                if ($model->google_event_id) {
+                    try {
+                        $service = new \App\Services\GoogleMeetService();
+                        $service->deleteMeeting($model->google_event_id, $model->google_space_name);
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::error('Gagal menghapus Google Meet saat model switching to offline', [
+                            'schedule_id' => $model->id,
+                            'error' => $e->getMessage()
+                        ]);
+                    }
+                    $model->meeting_link = null;
+                    $model->google_event_id = null;
+                    $model->google_space_name = null;
+                    $model->reminder_sent = false;
+                }
+            }
+        });
     }
 
     public function teacher(): BelongsTo

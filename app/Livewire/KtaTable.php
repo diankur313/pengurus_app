@@ -60,10 +60,15 @@ class KtaTable extends Component implements HasForms, HasTable
             ->fromSub($union, 'u');
     }
 
+    public function getTableRecordKey(\Illuminate\Database\Eloquent\Model $record): string
+    {
+        return (string) $record->id;
+    }
+
     public function table(Table $table): Table
     {
         return $table
-            ->query(fn () => $this->getUnionQuery())
+            ->query(fn () => $this->getUnionQuery()->whereNotNull('id')->where('id', '!=', ''))
             ->columns([
                 // Foto Profil
                 ImageColumn::make('photo')

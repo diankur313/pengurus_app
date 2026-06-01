@@ -6,6 +6,9 @@ use App\Filament\Resources\EducationScheduleResource;
 use App\Filament\Widgets\EducationScheduleCalendarWidget;
 use Filament\Resources\Pages\ManageRecords;
 
+use Livewire\Attributes\On;
+use Filament\Notifications\Notification;
+
 class ManageEducationSchedules extends ManageRecords
 {
     protected static string $resource = EducationScheduleResource::class;
@@ -25,6 +28,18 @@ class ManageEducationSchedules extends ManageRecords
         return [];
     }
 
-    // Override view untuk menyembunyikan tabel jika diperlukan, 
-    // namun biasanya meletakkan widget di header sudah cukup dominan.
+    #[On('refreshTable')]
+    public function refreshTable(): void
+    {
+        // triggers re-render of component to reload table data
+    }
+
+    #[On('notify-copied')]
+    public function notifyCopied(): void
+    {
+        Notification::make()
+            ->title('Link Google Meet berhasil dicopy!')
+            ->success()
+            ->send();
+    }
 }

@@ -131,10 +131,15 @@ class KartuTandaAnggota extends Page implements HasForms, HasTable
     protected static ?int    $navigationSort  = 4;
     protected static string  $view            = 'filament.pages.kartu-tanda-anggota';
 
+    public function getTableRecordKey(\Illuminate\Database\Eloquent\Model $record): string
+    {
+        return (string) $record->getKey();
+    }
+
     public function table(Table $table): Table
     {
         return $table
-            ->query(MemberLama::query())
+            ->query(MemberLama::query()->whereNotNull('member_no')->where('member_no', '!=', ''))
             ->columns([
                 ViewColumn::make('select')
                     ->label('')

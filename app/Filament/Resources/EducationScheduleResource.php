@@ -227,28 +227,10 @@ class EducationScheduleResource extends Resource
                         'gray'    => 'offline',
                     ]),
 
-                Tables\Columns\TextColumn::make('meeting_link')
+                Tables\Columns\ViewColumn::make('meeting_link')
                     ->label('Google Meet')
-                    ->default('—')
-                    ->formatStateUsing(function (?string $state, EducationSchedule $record): string {
-                        if ($record->attendance_mode !== 'online' || empty($record->meeting_link)) {
-                            return '—';
-                        }
-                        return 'Join Meet';
-                    })
-                    ->badge()
-                    ->color(function (?string $state, EducationSchedule $record): string {
-                        if ($record->attendance_mode !== 'online' || empty($record->meeting_link)) {
-                            return 'gray';
-                        }
-                        return 'success';
-                    })
-                    ->url(fn (EducationSchedule $record): ?string => $record->meeting_link ?: null)
-                    ->openUrlInNewTab()
-                    ->copyable()
-                    ->copyableState(fn (EducationSchedule $record): string => $record->meeting_link ?? '')
-                    ->copyMessage('Link berhasil dicopy!')
-                    ->copyMessageDuration(2000),
+                    ->view('filament.tables.columns.meeting-link')
+                    ->width('200px'),
 
                 Tables\Columns\TextColumn::make('teacher.name')
                     ->label('Ustadz'),
@@ -290,14 +272,16 @@ class EducationScheduleResource extends Resource
                             ]);
                         }
                     })
-                    ->after(function (EducationSchedule $record) {
+                    ->after(function (EducationSchedule $record, $livewire) {
                         if ($record->attendance_mode !== 'online') {
+                            $livewire->dispatch('refreshCalendar');
                             return;
                         }
 
                         // Offline → Online (belum ada link): generate
                         if (!$record->meeting_link) {
                             static::generateMeetLink($record);
+                            $livewire->dispatch('refreshCalendar');
                             return;
                         }
 
@@ -330,6 +314,7 @@ class EducationScheduleResource extends Resource
                         }
 
                         $record->update(['reminder_sent' => false]);
+                        $livewire->dispatch('refreshCalendar');
                     }),
 
                 Tables\Actions\DeleteAction::make()
@@ -342,6 +327,9 @@ class EducationScheduleResource extends Resource
                                 // silent
                             }
                         }
+                    })
+                    ->after(function ($livewire) {
+                        $livewire->dispatch('refreshCalendar');
                     }),
             ]);
     }

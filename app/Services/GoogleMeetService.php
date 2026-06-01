@@ -77,10 +77,15 @@ class GoogleMeetService
      */
     public function createMeeting(EducationSchedule $schedule): array
     {
-        // 1. Buat Meet space via REST API
+        // 1. Buat Meet space via REST API (body kosong — accessType di-set via PATCH)
         [$meetLink, $spaceName] = $this->createMeetSpace($schedule);
 
-        // 2. Buat Calendar event dengan Meet link di description
+        // 2. Patch space settings (accessType, entryPointAccess, moderation)
+        if ($meetLink) {
+            $this->patchSpaceSettings($meetLink, $schedule);
+        }
+
+        // 3. Buat Calendar event dengan Meet link di description
         $event = $this->buildCalendarEvent($schedule, $meetLink);
 
         $createdEvent = $this->calendarService->events->insert(
@@ -237,16 +242,11 @@ class GoogleMeetService
             'Content-Type'  => 'application/json',
         ];
 
-        $body = json_encode([
-            'config' => [
-                'accessType'       => $schedule->meet_access_type ?? 'OPEN',
-                'entryPointAccess' => $schedule->meet_entry_point_access ?? 'ALL',
-            ],
-        ]);
-
+        // POST /spaces harus pakai body kosong — Meet API tidak izinkan set
+        // accessType/entryPointAccess saat creation (hanya via PATCH setelah dibuat).
         $response = $httpClient->request('POST', 'https://meet.googleapis.com/v2/spaces', [
             'headers' => $headers,
-            'body'    => $body,
+            'body'    => '{}',
         ]);
 
         $data = json_decode($response->getBody()->getContents(), true);
