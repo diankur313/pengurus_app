@@ -45,15 +45,12 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
                     $isSingleDay      = false;
 
                     if ($start && $end) {
-                        $isSameDay   = $start->format('Y-m-d') === $end->format('Y-m-d');
-                        $isNextDay   = $end->copy()->subDay()->format('Y-m-d') === $start->format('Y-m-d');
-                        $isSingleDay = $isSameDay || $isNextDay;
+                        $isSingleDay = $start->format('Y-m-d') === $end->format('Y-m-d');
 
                         if ($isSingleDay) {
                             $dateRangeDisplay = $start->format('d-m-Y');
                         } else {
-                            $displayEnd       = $end->copy()->subDay();
-                            $dateRangeDisplay = $start->format('d-m-Y') . ' s/d ' . $displayEnd->format('d-m-Y');
+                            $dateRangeDisplay = $start->format('d-m-Y') . ' s/d ' . $end->format('d-m-Y');
                         }
                     }
 
@@ -61,13 +58,8 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
                     $formEnd   = $end;
 
                     if ($start && $end) {
-                        if ($isSingleDay) {
-                            $formStart = $start->copy()->setTime(8, 0);
-                            $formEnd   = $start->copy()->setTime(10, 0);
-                        } else {
-                            $formStart = $start->copy()->setTime(8, 0);
-                            $formEnd   = $end->copy()->subDay()->setTime(10, 0);
-                        }
+                        $formStart = $start->copy()->setTime(8, 0);
+                        $formEnd   = $end->copy()->setTime(10, 0);
                     }
 
                     $form->fill([
@@ -87,6 +79,34 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
                 })
                 ->extraAttributes(['class' => 'hidden']),
         ];
+    }
+
+    public function onDateSelect(string $start, ?string $end, bool $allDay, ?array $view, ?array $resource): void
+    {
+        $timezone = \Saade\FilamentFullCalendar\FilamentFullCalendarPlugin::make()->getTimezone();
+        $startDate = \Illuminate\Support\Carbon::parse($start, $timezone);
+        $today = now()->startOfDay();
+
+        if ($startDate->isBefore($today)) {
+            Notification::make()
+                ->title('Gagal membuat jadwal')
+                ->body('Tidak dapat membuat jadwal di tanggal masa lalu.')
+                ->danger()
+                ->send();
+            
+            $this->dispatch('filament-fullcalendar--refresh');
+            return;
+        }
+
+        [$start, $end] = $this->calculateTimezoneOffset($start, $end, $allDay);
+
+        $this->mountAction('create', [
+            'type' => 'select',
+            'start' => $start,
+            'end' => $end,
+            'allDay' => $allDay,
+            'resource' => $resource,
+        ]);
     }
 
     public function fetchEvents(array $fetchInfo): array
@@ -254,11 +274,33 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
                     ->label('Mulai')
                     ->required()
                     ->seconds(false)
-                    ->live(),
+                    ->live()
+                    ->rules([
+                        fn (?EducationSchedule $record) => function (string $attribute, $value, \Closure $fail) use ($record) {
+                            if (empty($value)) return;
+                            $newDate = \Illuminate\Support\Carbon::parse($value);
+                            $today = now()->startOfDay();
+                            
+                            if (!$record || !$record->exists) {
+                                if ($newDate->isBefore($today)) {
+                                    $fail('Tanggal mulai tidak boleh di masa lalu.');
+                                }
+                            } else {
+                                $originalStart = $record->getOriginal('start_at');
+                                if ($originalStart) {
+                                    $origDate = \Illuminate\Support\Carbon::parse($originalStart);
+                                    if ($newDate->format('Y-m-d H:i') !== $origDate->format('Y-m-d H:i') && $newDate->isBefore($today)) {
+                                        $fail('Tanggal mulai tidak boleh di masa lalu.');
+                                    }
+                                }
+                            }
+                        }
+                    ]),
                 Forms\Components\DateTimePicker::make('end_at')
                     ->label('Selesai')
                     ->required()
-                    ->seconds(false),
+                    ->seconds(false)
+                    ->afterOrEqual('start_at'),
             ]),
 
             // ─── Google Meet Settings ─────────────────────────────────────

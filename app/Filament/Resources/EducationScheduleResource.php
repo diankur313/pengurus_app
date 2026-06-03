@@ -104,11 +104,33 @@ class EducationScheduleResource extends Resource
                     Forms\Components\DateTimePicker::make('start_at')
                         ->label('Mulai')
                         ->required()
-                        ->live(),
+                        ->live()
+                        ->rules([
+                            fn (?EducationSchedule $record) => function (string $attribute, $value, \Closure $fail) use ($record) {
+                                if (empty($value)) return;
+                                $newDate = \Illuminate\Support\Carbon::parse($value);
+                                $today = now()->startOfDay();
+                                
+                                if (!$record || !$record->exists) {
+                                    if ($newDate->isBefore($today)) {
+                                        $fail('Tanggal mulai tidak boleh di masa lalu.');
+                                    }
+                                } else {
+                                    $originalStart = $record->getOriginal('start_at');
+                                    if ($originalStart) {
+                                        $origDate = \Illuminate\Support\Carbon::parse($originalStart);
+                                        if ($newDate->format('Y-m-d H:i') !== $origDate->format('Y-m-d H:i') && $newDate->isBefore($today)) {
+                                            $fail('Tanggal mulai tidak boleh di masa lalu.');
+                                        }
+                                    }
+                                }
+                            }
+                        ]),
 
                     Forms\Components\DateTimePicker::make('end_at')
                         ->label('Selesai')
-                        ->required(),
+                        ->required()
+                        ->afterOrEqual('start_at'),
                 ]),
 
                 // ─── Pengaturan Google Meet ─────────────────────────────────

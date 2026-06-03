@@ -17,10 +17,15 @@ class PpabTable extends Component implements HasForms, HasTable
     use InteractsWithForms;
     use InteractsWithTable;
 
+    public function getTableRecordKey(\Illuminate\Database\Eloquent\Model $record): string
+    {
+        return (string) $record->getKey();
+    }
+
     public function table(Table $table): Table
     {
         return $table
-            ->query(MemberPpab::query())
+            ->query(MemberPpab::query()->whereNotNull('id_member')->where('id_member', '!=', ''))
             ->columns([
                 ImageColumn::make('photo')
                     ->label('Photo')
