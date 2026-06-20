@@ -19,6 +19,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        if (config('app.env') !== 'local' || request()->server('HTTP_X_FORWARDED_PROTO') == 'https') {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        } else {
+            \Illuminate\Support\Facades\URL::forceScheme('https'); // Force globally since the app URL is https
+        }
     }
 }

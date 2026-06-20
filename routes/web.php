@@ -19,18 +19,27 @@ Route::get('/profile-picture/{filename}', function (string $filename) {
         return response()->file($externalPath);
     }
 
+    // 3. Fallback ke project join-ppab (eksternal baru)
+    $joinPpabPath = '/www/wwwroot/join-ppab.yiscalazhar.web.id/storage/app/public/avatars/' . $filename;
+    if (file_exists($joinPpabPath)) {
+        return response()->file($joinPpabPath);
+    }
+    
+    // 4. Jika nama file mengandung avatars/ 
+    if (str_starts_with($filename, 'avatars/')) {
+        $joinPpabPathWithDir = '/www/wwwroot/join-ppab.yiscalazhar.web.id/storage/app/public/' . $filename;
+        if (file_exists($joinPpabPathWithDir)) {
+            return response()->file($joinPpabPathWithDir);
+        }
+    }
+
     abort(404);
-})->middleware('auth')->name('profile.picture');
+})->middleware('auth')->name('profile.picture')->where('filename', '.*');
 
 // Download KTA (Kartu Tanda Anggota)
 Route::get('/kta-download/{source}/{id}', [KtaController::class, 'download'])
     ->middleware('auth')
     ->name('kta.download');
-
-Route::get('/generate-shield', function () {
-    \Illuminate\Support\Facades\Artisan::call('shield:generate', ['--all' => true]);
-    return "Shield Permissions Generated Successfully!";
-});
 
 // Google OAuth2 — one-time authorization untuk Meet API
 Route::get('/google/auth', [GoogleAuthController::class, 'redirect'])

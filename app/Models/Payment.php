@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\PaymentGatewayFee;
 
 class Payment extends Model
 {
@@ -57,6 +58,16 @@ class Payment extends Model
             if ($model->qris) $methods[] = 'QRIS';
             if ($model->cs)   $methods[] = 'INDOMARET';
             $model->payment_method = $methods;
+        });
+
+        // Auto-fill fee_sysdev based on id_apps
+        static::creating(function (self $model) {
+            if (!empty($model->id_apps) && empty($model->fee_sysdev)) {
+                $feeRule = PaymentGatewayFee::where('app_id', $model->id_apps)->first();
+                if ($feeRule) {
+                    $model->fee_sysdev = $feeRule->sysdev_fee;
+                }
+            }
         });
     }
 

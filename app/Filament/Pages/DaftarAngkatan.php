@@ -8,6 +8,12 @@ use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 class DaftarAngkatan extends Page
 {
     use HasPageShield;
+    
+    public static function canAccess(): bool
+    {
+        return false;
+    }
+    
     protected static ?string $navigationGroup = 'Super Admin';
     protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
     protected static ?string $navigationLabel = 'Daftar Angkatan';

@@ -4,9 +4,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ScannerController;
+use App\Http\Controllers\Api\XenditWebhookController;
+use App\Http\Controllers\Api\InternalCredentialController;
 
 // Auth Routes
 Route::post('/auth/login', [AuthController::class, 'login']);
+
+// Xendit Webhook — public endpoint, validasi dilakukan di controller via x-callback-token
+Route::post('/webhook/xendit/invoice', [XenditWebhookController::class, 'handleInvoice']);
+
+// Internal API untuk child apps — validasi Bearer Token di controller
+Route::get('/internal/xendit-credentials', [InternalCredentialController::class, 'getCredentials']);
 
 // Cron endpoint — secured by CRON_SECRET token
 Route::get('/cron/update-withdrawable', function (Request $request) {
