@@ -9,6 +9,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Tables\Columns\ImageColumn;
 
 class PpabRegistrationResource extends Resource
 {
@@ -90,6 +91,42 @@ class PpabRegistrationResource extends Resource
                             ->label('WA Group Akhwat')
                             ->maxLength(255),
                     ]),
+
+                    Forms\Components\FileUpload::make('background_image')
+                        ->label('Background Gambar (join-ppab)')
+                        ->helperText('Gambar ini akan menjadi background halaman Login & Register di join-ppab.yiscalazhar.web.id. File besar akan otomatis dikompres.')
+                        ->image()
+                        ->disk('public')
+                        ->directory('ppab-backgrounds')
+                        ->visibility('public')
+                        ->acceptedFileTypes(['image/jpeg', 'image/jpg', 'image/png', 'image/webp'])
+                        ->maxSize(20480) // 20MB — Intervention akan kompres setelahnya
+                        ->imagePreviewHeight('200')
+                        ->columnSpanFull()
+                        ->saveUploadedFileUsing(function ($file) {
+                            $manager = \Intervention\Image\ImageManager::usingDriver(
+                                \Intervention\Image\Drivers\Gd\Driver::class
+                            );
+
+                            $image = $manager->decodePath($file->getRealPath());
+
+                            // Resize jika lebar > 1920px, pertahankan aspect ratio
+                            if ($image->width() > 1920) {
+                                $image->scale(width: 1920);
+                            }
+
+                            // Encode ke JPEG quality 80
+                            $encoded = $image->encode(
+                                new \Intervention\Image\Encoders\JpegEncoder(80)
+                            );
+
+                            $filename = pathinfo($file->hashName(), PATHINFO_FILENAME) . '.jpg';
+                            $path = 'ppab-backgrounds/' . $filename;
+
+                            \Illuminate\Support\Facades\Storage::disk('public')->put($path, (string) $encoded);
+
+                            return $path;
+                        }),
                 ]),
 
             self::getPackageSection('SII', 'sii_'),
@@ -102,6 +139,14 @@ class PpabRegistrationResource extends Resource
     {
         return $table
             ->columns([
+                ImageColumn::make('background_image')
+                    ->label('Background')
+                    ->disk('public')
+                    ->height(48)
+                    ->width(80)
+                    ->defaultImageUrl(null)
+                    ->extraImgAttributes(['style' => 'object-fit: cover; border-radius: 6px;']),
+
                 Tables\Columns\TextColumn::make('status_agenda')
                     ->label('Status Agenda')
                     ->badge()

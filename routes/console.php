@@ -57,3 +57,56 @@ Schedule::call(function () {
         \Illuminate\Support\Facades\DB::connection('ppab')->table('ppab_ticket_locks')->where('id', $lock->id)->delete();
     }
 })->everyMinute();
+
+// Auto Sync Civitas Member (3 bulan registrasi terakhir / 5 bulan presensi terakhir)
+Schedule::call(function () {
+    // Ambil data ppab_member dalam 3 bulan terakhir
+    $recentPpabIds = \App\Models\MemberPpab::where('created_at', '>=', now()->subMonths(3))
+        ->pluck('id_member')
+        ->toArray();
+        
+    // Ambil data dari attendances dalam 5 bulan terakhir
+    $recentAttendanceCivitasIds = \App\Models\Attendance::where('created_at', '>=', now()->subMonths(5))
+        ->distinct()
+        ->pluck('civitas_id')
+        ->toArray();
+        
+    $attendancePpabIds = \App\Models\CivitasPendidikan::whereIn('uuid', $recentAttendanceCivitasIds)
+        ->where('source_type', 'table_ppab_baru')
+        ->pluck('source_id')
+        ->toArray();
+        
+    // Gabungkan id_member yang eligible
+    $allEligibleIds = array_unique(array_merge($recentPpabIds, $attendancePpabIds));
+    
+    if (!empty($allEligibleIds)) {
+        // Cek mana saja yang belum ada di civitas_pendidikans
+        $existingIds = \App\Models\CivitasPendidikan::where('source_type', 'table_ppab_baru')
+            ->whereIn('source_id', $allEligibleIds)
+            ->pluck('source_id')
+            ->toArray();
+            
+        $missingIds = array_diff($allEligibleIds, $existingIds);
+        
+        if (!empty($missingIds)) {
+            $missingPpabs = \App\Models\MemberPpab::whereIn('id_member', $missingIds)->get();
+            
+            $insertData = [];
+            foreach ($missingPpabs as $ppab) {
+                $insertData[] = [
+                    'uuid' => $ppab->uuid ?? \Illuminate\Support\Str::uuid()->toString(),
+                    'source_type' => 'table_ppab_baru',
+                    'source_id' => $ppab->id_member,
+                    // Karena auto sync, level dibiarkan null atau ambil dari table member jika ada
+                    'level_angkatan' => $ppab->level_angkatan ?? null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+            
+            if (!empty($insertData)) {
+                \App\Models\CivitasPendidikan::insert($insertData);
+            }
+        }
+    }
+})->dailyAt('02:00');

@@ -39,10 +39,10 @@ class AllCivitas extends Page implements HasForms, HasTable
                     ->circular()
                     ->size(80)
                     ->extraAttributes(fn ($record) => [
-                        'x-on:click' => "\$dispatch('open-preview', { url: '" . (filled($record->photo) ? url('/profile-picture/' . $record->photo) : 'https://ui-avatars.com/api/?name=' . urlencode($record->member_name ?? 'U') . '&color=FFFFFF&background=09090b') . "' }); \$dispatch('open-modal', { id: 'preview-photo-modal' });",
+                        'x-on:click' => "\$dispatch('open-preview', { url: '" . profilePhotoUrl($record->photo, $record->member_name) . "' }); \$dispatch('open-modal', { id: 'preview-photo-modal' });",
                         'style' => 'cursor: pointer;',
                     ])
-                    ->defaultImageUrl(fn ($record) => 'https://ui-avatars.com/api/?name=' . urlencode($record->member_name ?? 'U') . '&color=FFFFFF&background=09090b'),
+                    ->defaultImageUrl(fn ($record) => profilePhotoUrl(null, $record->member_name)),
                 TextColumn::make('member_name')
                     ->label('Nama')
                     ->searchable()

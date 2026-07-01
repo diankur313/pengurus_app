@@ -7,6 +7,18 @@ use App\Http\Controllers\GoogleAuthController;
 
 // Serve profile pictures from local (private) or external storage
 Route::get('/profile-picture/{filename}', function (string $filename) {
+    // 0. Jika foto adalah path /storage/... dari join-ppab (hasil Storage::url())
+    //    Contoh: /storage/avatars/105890034088640700922_xxxx.jpg
+    if (str_starts_with($filename, '/storage/') || str_starts_with($filename, 'storage/')) {
+        // Strip leading "/storage/" atau "storage/" untuk dapatkan path relatif dari public disk
+        $relativePath = preg_replace('#^/?storage/#', '', $filename);
+        $joinPpabStoragePath = '/www/wwwroot/join-ppab.yiscalazhar.web.id/storage/app/public/' . $relativePath;
+        if (file_exists($joinPpabStoragePath)) {
+            return response()->file($joinPpabStoragePath);
+        }
+        abort(404);
+    }
+
     // 1. Cek di penyimpanan lokal app2 (Folder Private)
     $localPath = storage_path('app/private/profile_pictures/' . $filename);
     if (file_exists($localPath)) {
@@ -19,7 +31,7 @@ Route::get('/profile-picture/{filename}', function (string $filename) {
         return response()->file($externalPath);
     }
 
-    // 3. Fallback ke project join-ppab (eksternal baru)
+    // 3. Fallback ke project join-ppab — jika hanya filename tanpa path
     $joinPpabPath = '/www/wwwroot/join-ppab.yiscalazhar.web.id/storage/app/public/avatars/' . $filename;
     if (file_exists($joinPpabPath)) {
         return response()->file($joinPpabPath);

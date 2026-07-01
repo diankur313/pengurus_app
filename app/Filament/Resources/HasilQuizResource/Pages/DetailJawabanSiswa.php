@@ -47,7 +47,7 @@ class DetailJawabanSiswa extends Page implements HasTable
         
         $civitasPhoto = $submission->civitas?->photo;
         if (filled($civitasPhoto) && $civitasPhoto !== 'avatar.png') {
-            $this->siswaPhoto = url('/profile-picture/' . $civitasPhoto);
+            $this->siswaPhoto = profilePhotoUrl($civitasPhoto, $this->siswaNama);
         } else {
             $this->siswaPhoto = 'https://ui-avatars.com/api/?name=' . urlencode($this->siswaNama) . '&color=FFFFFF&background=09090b';
         }

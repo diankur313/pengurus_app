@@ -77,18 +77,14 @@ class KtaTable extends Component implements HasForms, HasTable
                     ->size(80)
                     ->getStateUsing(fn ($record) =>
                         filled($record->photo) && $record->photo !== 'avatar.png'
-                            ? url('/profile-picture/' . $record->photo)
+                            ? profilePhotoUrl($record->photo, $record->name)
                             : null
                     )
                     ->defaultImageUrl(fn ($record) =>
-                        'https://ui-avatars.com/api/?name=' . urlencode($record->name ?? 'U') . '&color=FFFFFF&background=09090b'
+                        profilePhotoUrl(null, $record->name)
                     )
                     ->extraAttributes(fn ($record) => [
-                        'x-on:click' => "\$dispatch('open-preview', { url: '" . (
-                            filled($record->photo) && $record->photo !== 'avatar.png'
-                                ? url('/profile-picture/' . $record->photo)
-                                : 'https://ui-avatars.com/api/?name=' . urlencode($record->name ?? 'U') . '&color=FFFFFF&background=09090b'
-                        ) . "' }); \$dispatch('open-modal', { id: 'preview-photo-modal' });",
+                        'x-on:click' => "\$dispatch('open-preview', { url: '" . profilePhotoUrl($record->photo, $record->name) . "' }); \$dispatch('open-modal', { id: 'preview-photo-modal' });",
                         'style' => 'cursor: pointer;',
                     ]),
 

@@ -136,14 +136,14 @@ class KtaPpabTable extends Component implements HasForms, HasTable
                     ->circular()
                     ->size(80)
                     ->extraAttributes(fn ($record) => [
-                        'x-on:click' => "\$dispatch('open-preview', { url: '" . ((filled($record->photo) && $record->photo !== 'avatar.png') ? url('/profile-picture/' . $record->photo) : 'https://ui-avatars.com/api/?name=' . urlencode($record->name ?? 'U') . '&color=FFFFFF&background=09090b') . "' }); \$dispatch('open-modal', { id: 'preview-photo-modal' });",
+                        'x-on:click' => "\$dispatch('open-preview', { url: '" . profilePhotoUrl($record->photo, $record->name) . "' }); \$dispatch('open-modal', { id: 'preview-photo-modal' });",
                         'style' => 'cursor: pointer;',
                     ])
                     ->getStateUsing(fn ($record) => filled($record->photo) && $record->photo !== 'avatar.png'
-                        ? url('/profile-picture/' . $record->photo)
+                        ? profilePhotoUrl($record->photo, $record->name)
                         : null
                     )
-                    ->defaultImageUrl(fn ($record) => 'https://ui-avatars.com/api/?name=' . urlencode($record->name ?? 'U') . '&color=FFFFFF&background=09090b'),
+                    ->defaultImageUrl(fn ($record) => profilePhotoUrl(null, $record->name)),
                 TextColumn::make('name')
                     ->label('Nama')
                     ->searchable()

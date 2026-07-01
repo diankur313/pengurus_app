@@ -24,18 +24,8 @@ class User extends Authenticatable implements HasName, HasAvatar
 
     public function getFilamentAvatarUrl(): ?string
     {
-        if ($this->photo) {
-            // Cek di penyimpanan lokal app2 (Private)
-            $localPath = storage_path('app/private/profile_pictures/' . $this->photo);
-            if (file_exists($localPath)) {
-                return '/profile-picture/' . $this->photo;
-            }
-
-            // Fallback ke penyimpanan awalan (eksternal)
-            $fallbackPath = '/www/wwwroot/ppab.yiscalazhar.web.id/frontend/storage/app/private/profil_picture/' . $this->photo;
-            if (file_exists($fallbackPath)) {
-                return '/profile-picture/' . $this->photo;
-            }
+        if ($this->photo && $this->photo !== 'avatar.png') {
+            return profilePhotoUrl($this->photo, $this->name);
         }
         return null;
     }

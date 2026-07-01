@@ -67,3 +67,33 @@ if (!function_exists('ktaTextWithBorder')) {
         });
     }
 }
+
+if (!function_exists('profilePhotoUrl')) {
+    /**
+     * Resolve URL foto profil dengan dukungan semua format:
+     * - /storage/avatars/xxx.jpg  (dari join-ppab Google SSO via Storage::url())
+     * - http://...                (URL eksternal)
+     * - filename.jpg              (file lokal via route /profile-picture/)
+     *
+     * @param  string|null $photo   Nilai kolom photo dari DB
+     * @param  string|null $name    Nama untuk fallback avatar
+     * @return string
+     */
+    function profilePhotoUrl(?string $photo, ?string $name = null): string
+    {
+        $fallback = 'https://ui-avatars.com/api/?name=' . urlencode($name ?? 'U') . '&color=FFFFFF&background=09090b';
+
+        if (blank($photo) || $photo === 'avatar.png') {
+            return $fallback;
+        }
+
+        // URL eksternal langsung (http/https)
+        if (str_starts_with($photo, 'http')) {
+            return $photo;
+        }
+
+        // Path dari Storage::url() join-ppab: /storage/avatars/xxx.jpg
+        // Kita tetap kirim via route /profile-picture/ supaya auth check tetap jalan
+        return url('/profile-picture/' . ltrim($photo, '/'));
+    }
+}

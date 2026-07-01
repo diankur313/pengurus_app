@@ -63,15 +63,15 @@ class ManageCivitas extends ManageRecords
                             $labels = [];
                             foreach ($values as $value) {
                                 if (!$value) continue;
-                                
+
                                 $parts = explode(':', $value);
                                 if (count($parts) !== 2) {
                                     $labels[$value] = $value;
                                     continue;
                                 }
-                                
+
                                 [$type, $id] = $parts;
-                                
+
                                 if ($type === 'table_ppab_baru') {
                                     $member = \App\Models\MemberPpab::find($id);
                                     $labels[$value] = $member ? "{$member->name} ({$member->nama_angkatan}) - PPAB Baru" : $value;
@@ -89,19 +89,19 @@ class ManageCivitas extends ManageRecords
                 ->action(function (array $data) {
                     $level = strtolower($data['level_angkatan']);
                     $memberValues = $data['member'] ?? [];
-                    
+
                     foreach ($memberValues as $memberValue) {
                         $parts = explode(':', $memberValue);
                         if (count($parts) !== 2) continue;
-                        
+
                         [$type, $id] = $parts;
-                        
+
                         // Update or create CivitasPendidikan
                         $civitas = \App\Models\CivitasPendidikan::firstOrNew([
                             'source_type' => $type,
                             'source_id' => $id,
                         ]);
-                        
+
                         if (!$civitas->exists) {
                             if ($type === 'table_ppab_baru') {
                                 $ppab = \App\Models\MemberPpab::find($id);
@@ -110,10 +110,10 @@ class ManageCivitas extends ManageRecords
                                 $civitas->uuid = \Illuminate\Support\Str::uuid()->toString();
                             }
                         }
-                        
+
                         $civitas->level_angkatan = $level;
                         $civitas->save();
-                        
+
                         // Update Master Table
                         if ($type === 'table_ppab_baru') {
                             \App\Models\MemberPpab::where('id_member', $id)->update(['level_angkatan' => $level]);
@@ -121,7 +121,7 @@ class ManageCivitas extends ManageRecords
                             \App\Models\MemberLama::where('member_no', $id)->update(['level_angkatan' => $level]);
                         }
                     }
-                    
+
                     // Notify
                     \Filament\Notifications\Notification::make()
                         ->title('Members synchronized successfully')

@@ -61,51 +61,52 @@ class CivitasResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->where(function ($q) {
+            ->modifyQueryUsing(fn(Builder $query) => $query->where(function ($q) {
                 $q->where('source_type', 'table_member_lama')
-                  ->orWhere(function ($q2) {
-                      $q2->where('source_type', 'table_ppab_baru')
-                         ->whereIn('source_id', MemberPpab::where('stage', 'paid_payment')->pluck('id_member'));
-                  });
+                    ->orWhere(function ($q2) {
+                        $q2->where('source_type', 'table_ppab_baru')
+                            ->whereIn('source_id', MemberPpab::where('stage', 'paid_payment')->pluck('id_member'));
+                    });
             }))
             ->columns([
                 ImageColumn::make('photo')
                     ->label('Photo')
                     ->circular()
                     ->size(80)
-                    ->extraAttributes(fn ($record) => [
-                        'x-on:click' => "\$dispatch('open-preview', { url: '" . ((filled($record->photo) && $record->photo !== 'avatar.png') ? url('/profile-picture/' . $record->photo) : 'https://ui-avatars.com/api/?name=' . urlencode($record->name ?? 'U') . '&color=FFFFFF&background=09090b') . "' }); \$dispatch('open-modal', { id: 'preview-photo-modal' });",
+                    ->extraAttributes(fn($record) => [
+                        'x-on:click' => "\$dispatch('open-preview', { url: '" . profilePhotoUrl($record->photo, $record->name) . "' }); \$dispatch('open-modal', { id: 'preview-photo-modal' });",
                         'style' => 'cursor: pointer;',
                     ])
-                    ->getStateUsing(fn ($record) => filled($record->photo) && $record->photo !== 'avatar.png'
-                        ? url('/profile-picture/' . $record->photo)
-                        : null
+                    ->getStateUsing(
+                        fn($record) => filled($record->photo) && $record->photo !== 'avatar.png'
+                            ? profilePhotoUrl($record->photo, $record->name)
+                            : null
                     )
-                    ->defaultImageUrl(fn ($record) => 'https://ui-avatars.com/api/?name=' . urlencode($record->name ?? 'U') . '&color=FFFFFF&background=09090b'),
+                    ->defaultImageUrl(fn($record) => profilePhotoUrl(null, $record->name)),
                 TextColumn::make('name')
                     ->label('Nama')
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->where(function ($q) use ($search) {
                             $q->where(function ($q1) use ($search) {
                                 $q1->where('source_type', 'table_ppab_baru')
-                                   ->whereIn('source_id', MemberPpab::where('name', 'like', "%{$search}%")->pluck('id_member'));
+                                    ->whereIn('source_id', MemberPpab::where('name', 'like', "%{$search}%")->pluck('id_member'));
                             })->orWhere(function ($q2) use ($search) {
                                 $q2->where('source_type', 'table_member_lama')
-                                   ->whereIn('source_id', MemberLama::where('member_name', 'like', "%{$search}%")->pluck('member_no'));
+                                    ->whereIn('source_id', MemberLama::where('member_name', 'like', "%{$search}%")->pluck('member_no'));
                             });
                         });
                     }),
                 TextColumn::make('gender')
                     ->label('Gender')
-                    ->formatStateUsing(fn ($state) => ucfirst($state))
+                    ->formatStateUsing(fn($state) => ucfirst($state))
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->where(function ($q) use ($search) {
                             $q->where(function ($q1) use ($search) {
                                 $q1->where('source_type', 'table_ppab_baru')
-                                   ->whereIn('source_id', MemberPpab::where('gender', 'like', "%{$search}%")->pluck('id_member'));
+                                    ->whereIn('source_id', MemberPpab::where('gender', 'like', "%{$search}%")->pluck('id_member'));
                             })->orWhere(function ($q2) use ($search) {
                                 $q2->where('source_type', 'table_member_lama')
-                                   ->whereIn('source_id', MemberLama::where('member_gend', 'like', "%{$search}%")->pluck('member_no'));
+                                    ->whereIn('source_id', MemberLama::where('member_gend', 'like', "%{$search}%")->pluck('member_no'));
                             });
                         });
                     }),
@@ -115,10 +116,10 @@ class CivitasResource extends Resource
                         return $query->where(function ($q) use ($search) {
                             $q->where(function ($q1) use ($search) {
                                 $q1->where('source_type', 'table_ppab_baru')
-                                   ->whereIn('source_id', MemberPpab::where('email', 'like', "%{$search}%")->pluck('id_member'));
+                                    ->whereIn('source_id', MemberPpab::where('email', 'like', "%{$search}%")->pluck('id_member'));
                             })->orWhere(function ($q2) use ($search) {
                                 $q2->where('source_type', 'table_member_lama')
-                                   ->whereIn('source_id', MemberLama::where('member_emai', 'like', "%{$search}%")->pluck('member_no'));
+                                    ->whereIn('source_id', MemberLama::where('member_emai', 'like', "%{$search}%")->pluck('member_no'));
                             });
                         });
                     }),
@@ -128,16 +129,16 @@ class CivitasResource extends Resource
                         return $query->where(function ($q) use ($search) {
                             $q->where(function ($q1) use ($search) {
                                 $q1->where('source_type', 'table_ppab_baru')
-                                   ->whereIn('source_id', MemberPpab::where('nama_angkatan', 'like', "%{$search}%")->pluck('id_member'));
+                                    ->whereIn('source_id', MemberPpab::where('nama_angkatan', 'like', "%{$search}%")->pluck('id_member'));
                             })->orWhere(function ($q2) use ($search) {
                                 $q2->where('source_type', 'table_member_lama')
-                                   ->whereIn('source_id', MemberLama::where('member_nama_angkatan', 'like', "%{$search}%")->pluck('member_no'));
+                                    ->whereIn('source_id', MemberLama::where('member_nama_angkatan', 'like', "%{$search}%")->pluck('member_no'));
                             });
                         });
                     }),
                 TextColumn::make('level_angkatan')
                     ->label('Level')
-                    ->formatStateUsing(fn ($state) => ucfirst($state))
+                    ->formatStateUsing(fn($state) => ucfirst($state))
                     ->searchable()
                     ->sortable(),
             ])
@@ -151,7 +152,7 @@ class CivitasResource extends Resource
                     ->color('warning')
                     ->requiresConfirmation()
                     ->modalHeading('Kirim Undangan Portal e-SII')
-                    ->modalDescription(fn ($record) => "Kirim email undangan login portal e-SII ke {$record->email}?")
+                    ->modalDescription(fn($record) => "Kirim email undangan login portal e-SII ke {$record->email}?")
                     ->modalSubmitActionLabel('Ya, Kirim Sekarang')
                     ->action(function ($record) {
                         if (!$record->email) {

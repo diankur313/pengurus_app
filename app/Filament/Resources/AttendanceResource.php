@@ -49,10 +49,10 @@ class AttendanceResource extends Resource
                     ->circular()
                     ->size(60)
                     ->getStateUsing(fn ($record) => $record->civitas && filled($record->civitas->photo) && $record->civitas->photo !== 'avatar.png'
-                        ? url('/profile-picture/' . $record->civitas->photo)
+                        ? profilePhotoUrl($record->civitas->photo, $record->civitas->name)
                         : null
                     )
-                    ->defaultImageUrl(fn ($record) => 'https://ui-avatars.com/api/?name=' . urlencode($record->civitas->name ?? 'U') . '&color=FFFFFF&background=09090b'),
+                    ->defaultImageUrl(fn ($record) => profilePhotoUrl(null, $record->civitas->name ?? null)),
                 
                 TextColumn::make('civitas.name')
                     ->label('Nama')
