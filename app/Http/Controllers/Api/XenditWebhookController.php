@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PaymentGatewayFee;
+use App\Models\SysdevWithdraw;
 use App\Models\XenditWebhookLog;
 use App\Services\XenditFeeCalculatorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -17,23 +19,68 @@ class XenditWebhookController extends Controller
         private XenditFeeCalculatorService $feeCalculator
     ) {}
 
+    // =========================================================================
+    // UNIFIED ENTRY POINT
+    // POST /api/webhook/xendit  (standar — didaftarkan di Xendit Dashboard)
+    // POST /api/webhook/xendit/invoice       } alias — backward compat
+    // POST /api/webhook/xendit/disbursement  }
+    // =========================================================================
+
     /**
-     * Menerima webhook Invoice dari Xendit.
-     * POST /api/webhook/xendit/invoice
+     * Unified dispatcher — deteksi tipe webhook dari field 'event' di payload:
+     *   • Ada 'event' (mis. "disbursement.completed") → handleDisbursement()
+     *   • Tidak ada 'event' → handleInvoice()  (format lama Xendit Invoice)
      */
-    public function handleInvoice(Request $request): JsonResponse
+    public function handle(Request $request): JsonResponse
     {
-        // 1. Validasi Xendit callback token
+        $unauthorized = $this->validateToken($request);
+        if ($unauthorized) return $unauthorized;
+
+        $payload = $request->all();
+        $event   = $payload['event'] ?? null;
+
+        Log::info('[XenditWebhook] Payload diterima di unified endpoint.', [
+            'event'       => $event ?? '(invoice — no event field)',
+            'external_id' => $payload['external_id'] ?? ($payload['data']['reference_id'] ?? null),
+        ]);
+
+        // Disbursement: Xendit v2 selalu mengirim field 'event'
+        if ($event !== null) {
+            return $this->handleDisbursement($request);
+        }
+
+        // Fallback: Invoice (tidak ada field 'event')
+        return $this->handleInvoice($request);
+    }
+
+    /**
+     * Validasi x-callback-token dari Xendit.
+     * Return JsonResponse 401 jika gagal, null jika valid.
+     */
+    private function validateToken(Request $request): ?JsonResponse
+    {
         $callbackToken = $request->header('x-callback-token');
-        $liveToken = config('services.xendit.webhook_token_live');
-        $testToken = config('services.xendit.webhook_token_test');
+        $liveToken     = config('services.xendit.webhook_token_live');
+        $testToken     = config('services.xendit.webhook_token_test');
 
         if (empty($callbackToken) || ($callbackToken !== $liveToken && $callbackToken !== $testToken)) {
-            Log::warning('[XenditWebhook] Token tidak valid.', [
-                'received' => $callbackToken,
-            ]);
+            Log::warning('[XenditWebhook] Token tidak valid.', ['received' => $callbackToken]);
             return response()->json(['message' => 'Unauthorized'], 401);
         }
+
+        return null;
+    }
+
+    /**
+     * Menerima webhook Invoice dari Xendit.
+     * Dipanggil oleh handle() atau langsung via alias route.
+     */
+    private function handleInvoice(Request $request): JsonResponse
+    {
+        // Token sudah divalidasi oleh handle(), tapi jika dipanggil via alias
+        // route lama, validasi ulang agar tetap aman.
+        $unauthorized = $this->validateToken($request);
+        if ($unauthorized) return $unauthorized;
 
         $payload = $request->all();
         $externalId    = $payload['external_id'] ?? null;
@@ -165,9 +212,10 @@ class XenditWebhookController extends Controller
             return 'e-yac';
         }
 
-        if (str_starts_with($upper, 'YISC/YAC') || str_starts_with($upper, 'YAC') || str_starts_with($upper, 'EYAC')) {
-            return 'e-yac';
+        if  (str_starts_with($upper, 'DISB/SYS')) {
+            return 'app';
         }
+
 
         // PPAB
         if (str_starts_with($upper, 'YISC/PPAB') || str_starts_with($upper, 'PPAB') || str_starts_with($upper, 'YISCAL')) {
@@ -271,6 +319,151 @@ class XenditWebhookController extends Controller
             ]);
 
             Log::error("[XenditWebhook] Gagal forward ke {$forwardUrl}: " . $e->getMessage());
+        }
+    }
+
+    // =========================================================================
+    // DISBURSEMENT WEBHOOK HANDLER
+    // Menangani callback Xendit untuk kode DISB/SYS dan DISB/ARCH.
+    // Endpoint: POST /api/webhook/xendit/disbursement
+    // =========================================================================
+
+    /**
+     * Menerima webhook Disbursement dari Xendit.
+     * Dipanggil oleh handle() atau langsung via alias route.
+     *
+     * Payload Xendit Disbursement v2:
+     * { "event": "disbursement.completed", "data": { "reference_id": "DISB/SYS-xxx", ... } }
+     */
+    private function handleDisbursement(Request $request): JsonResponse
+    {
+        // Token sudah divalidasi oleh handle(), tapi validasi ulang jika dipanggil via alias route.
+        $unauthorized = $this->validateToken($request);
+        if ($unauthorized) return $unauthorized;
+
+        // Ekstrak data inner dari Xendit Disbursement v2 (dibungkus di key 'data')
+        $payload = $request->all();
+        $data    = $payload['data'] ?? $payload; // fallback jika tidak ada wrapping
+
+        // PENTING: gunakan idempotency_key (nilai yang kita set saat buat disbursement)
+        // bukan reference_id (itu Xendit internal ID seperti "disb-xxx")
+        // Di DB kita, kolom reference_id menyimpan nilai idempotency_key.
+        $referenceId = $data['idempotency_key'] ?? ($data['reference_id'] ?? null);
+        $status      = $data['status'] ?? null;
+
+        if (!$referenceId || !$status) {
+            Log::warning('[XenditDisbursementWebhook] Payload tidak valid.', ['payload' => $payload]);
+            return response()->json(['message' => 'Payload tidak valid: idempotency_key/reference_id dan status wajib ada.'], 422);
+        }
+
+        Log::info('[XenditDisbursementWebhook] Diterima.', [
+            'idempotency_key'      => $data['idempotency_key'] ?? null,
+            'xendit_reference_id'  => $data['reference_id'] ?? null,
+            'resolved_reference'   => $referenceId,
+            'status'               => $status,
+        ]);
+
+        // Routing berdasarkan prefix
+        $upper = strtoupper($referenceId);
+
+        if (str_contains($upper, 'DISB/SYS')) {
+            $this->sysdevDisbursement($data);
+        } elseif (str_contains($upper, 'DISB/ARCH')) {
+            $this->archeryDisbursement($data);
+        } else {
+            Log::warning('[XenditDisbursementWebhook] Prefix tidak dikenal, tidak ada aksi.', [
+                'reference_id' => $referenceId,
+            ]);
+        }
+
+        return response()->json(['status' => 'received'], 200);
+    }
+
+    /**
+     * Update status disbursement DISB/SYS di tabel sysdev_withdraws (DB: ppab).
+     * Menggunakan idempotency_key sebagai key pencarian ke kolom reference_id.
+     */
+    private function sysdevDisbursement(array $data): void
+    {
+        // idempotency_key === reference_id yang di-set saat membuat disbursement
+        $referenceId = $data['idempotency_key'] ?? ($data['reference_id'] ?? null);
+
+        if (!$referenceId) {
+            Log::error('[XenditDisbursementWebhook] sysdev: idempotency_key/reference_id kosong.');
+            return;
+        }
+
+        $estimatedArrivalTime = null;
+        if (!empty($data['estimated_arrival_time'])) {
+            $estimatedArrivalTime = \Carbon\Carbon::parse($data['estimated_arrival_time'])->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s');
+        }
+
+        $update = [
+            'estimated_arrival_time' => $estimatedArrivalTime,
+            'status'                 => $data['status'],
+        ];
+
+        // Tambah failure_code jika status bukan terminal sukses
+        if (!in_array($data['status'], ['SUCCEEDED', 'ACCEPTED'])) {
+            $update['failure_code'] = $data['failure_code'] ?? null;
+        }
+
+        try {
+            $affected = SysdevWithdraw::where('reference_id', $referenceId)->update($update);
+            Log::info('[XenditDisbursementWebhook] sysdev_withdraws diupdate.', [
+                'reference_id' => $referenceId,
+                'status'       => $data['status'],
+                'affected'     => $affected,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('[XenditDisbursementWebhook] Gagal update sysdev_withdraws: ' . $e->getMessage(), [
+                'reference_id' => $referenceId,
+            ]);
+        }
+    }
+
+    /**
+     * Update status disbursement DISB/ARCH di tabel archery_withdraws (DB: ppab).
+     * Menggunakan idempotency_key sebagai key pencarian ke kolom reference_id.
+     */
+    private function archeryDisbursement(array $data): void
+    {
+        $referenceId = $data['idempotency_key'] ?? ($data['reference_id'] ?? null);
+
+        if (!$referenceId) {
+            Log::error('[XenditDisbursementWebhook] archery: idempotency_key/reference_id kosong.');
+            return;
+        }
+
+        $estimatedArrivalTime = null;
+        if (!empty($data['estimated_arrival_time'])) {
+            $estimatedArrivalTime = \Carbon\Carbon::parse($data['estimated_arrival_time'])->setTimezone(config('app.timezone'))->format('Y-m-d H:i:s');
+        }
+
+        $update = [
+            'estimated_arrival_time' => $estimatedArrivalTime,
+            'status'                 => $data['status'],
+        ];
+
+        if (!in_array($data['status'], ['SUCCEEDED', 'ACCEPTED'])) {
+            $update['failure_code'] = $data['failure_code'] ?? null;
+        }
+
+        try {
+            $affected = DB::connection('ppab')
+                ->table('archery_withdraws')
+                ->where('reference_id', $referenceId)
+                ->update($update);
+
+            Log::info('[XenditDisbursementWebhook] archery_withdraws diupdate.', [
+                'reference_id' => $referenceId,
+                'status'       => $data['status'],
+                'affected'     => $affected,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('[XenditDisbursementWebhook] Gagal update archery_withdraws: ' . $e->getMessage(), [
+                'reference_id' => $referenceId,
+            ]);
         }
     }
 }

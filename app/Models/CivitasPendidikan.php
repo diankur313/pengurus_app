@@ -61,7 +61,6 @@ class CivitasPendidikan extends Model
             ? $master->email 
             : $master->member_emai;
     }
-
     public function getAngkatanAttribute()
     {
         $master = $this->masterData;
@@ -70,5 +69,37 @@ class CivitasPendidikan extends Model
         return $this->source_type === 'table_ppab_baru' 
             ? $master->nama_angkatan 
             : $master->member_nama_angkatan;
+    }
+
+    public function getPaketAttribute()
+    {
+        $master = $this->masterData;
+        if (!$master) return null;
+        
+        return $this->source_type === 'table_ppab_baru' 
+            ? $master->paket 
+            : null;
+    }
+
+    public function getLevelAngkatanAttribute($value)
+    {
+        if ($this->source_type === 'table_ppab_baru') {
+            $master = $this->masterData;
+            if ($master) {
+                // Jika nama_angkatan di ppab_member kosong/null, otomatis 'angdas'
+                // Jika ada isinya, gunakan level_angkatan dari ppab_member
+                $resolvedLevel = empty($master->nama_angkatan) ? 'angdas' : $master->level_angkatan;
+                
+                // Normalisasi nilai untuk perbandingan
+                $normalizedValue = is_null($value) ? null : strtolower(trim($value));
+                $normalizedResolvedLevel = is_null($resolvedLevel) ? null : strtolower(trim($resolvedLevel));
+                
+                if ($normalizedValue !== $normalizedResolvedLevel) {
+                    $this->update(['level_angkatan' => $resolvedLevel]);
+                    return $resolvedLevel;
+                }
+            }
+        }
+        return $value;
     }
 }

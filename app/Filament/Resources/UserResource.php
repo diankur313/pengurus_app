@@ -32,7 +32,7 @@ class UserResource extends Resource
                 Forms\Components\Section::make('Informasi User')
                     ->schema([
                         Forms\Components\Select::make('email')
-                            ->label('Cari Nama')
+                            ->label('Cari Nama atau Email')
                             ->required()
                             ->searchable()
                             ->getSearchResultsUsing(function (string $search): array {
@@ -42,21 +42,29 @@ class UserResource extends Resource
 
                                 $localEmails = \App\Models\User::pluck('email')->toArray();
 
-                                // Ambil hanya dari database eksternal berdasarkan NAMA
+                                // Ambil hanya dari database eksternal berdasarkan NAMA atau EMAIL
                                 $queryLama = \Illuminate\Support\Facades\DB::connection('yisic_db_lama')
                                     ->table('member')
-                                    ->where('member_name', 'like', "%{$search}%")
+                                    ->where(function ($q) use ($search) {
+                                        $q->where('member_name', 'like', "%{$search}%")
+                                          ->orWhere('member_emai', 'like', "%{$search}%");
+                                    })
                                     ->whereNotIn('member_emai', $localEmails)
                                     ->limit(10)
-                                    ->pluck('member_name', 'member_emai') // [email => nama]
+                                    ->get()
+                                    ->mapWithKeys(fn ($item) => [$item->member_emai => "{$item->member_name} ({$item->member_emai})"])
                                     ->toArray();
 
                                 $queryPPAB = \Illuminate\Support\Facades\DB::connection('ppab')
                                     ->table('ppab_member')
-                                    ->where('name', 'like', "%{$search}%")
+                                    ->where(function ($q) use ($search) {
+                                        $q->where('name', 'like', "%{$search}%")
+                                          ->orWhere('email', 'like', "%{$search}%");
+                                    })
                                     ->whereNotIn('email', $localEmails)
                                     ->limit(10)
-                                    ->pluck('name', 'email') // [email => nama]
+                                    ->get()
+                                    ->mapWithKeys(fn ($item) => [$item->email => "{$item->name} ({$item->email})"])
                                     ->toArray();
 
                                 return array_merge($queryLama, $queryPPAB);
@@ -64,16 +72,16 @@ class UserResource extends Resource
                             ->getOptionLabelUsing(function ($value) {
                                 // Mencari label nama berdasarkan email yang dipilih
                                 $local = \App\Models\User::where('email', $value)->first();
-                                if ($local) return $local->name;
+                                if ($local) return "{$local->name} ({$local->email})";
 
                                 try {
                                     $lama = \Illuminate\Support\Facades\DB::connection('yisic_db_lama')->table('member')->where('member_emai', $value)->first();
-                                    if ($lama) return $lama->member_name;
+                                    if ($lama) return "{$lama->member_name} ({$lama->member_emai})";
                                 } catch (\Exception $e) {}
 
                                 try {
                                     $ppab = \Illuminate\Support\Facades\DB::connection('ppab')->table('ppab_member')->where('email', $value)->first();
-                                    if ($ppab) return $ppab->name;
+                                    if ($ppab) return "{$ppab->name} ({$ppab->email})";
                                 } catch (\Exception $e) {}
 
                                 return $value;
@@ -88,7 +96,8 @@ class UserResource extends Resource
                                         ->whereNotIn('member_emai', $localEmails)
                                         ->orderBy('member_name')
                                         ->limit(10)
-                                        ->pluck('member_name', 'member_emai')
+                                        ->get()
+                                        ->mapWithKeys(fn ($item) => [$item->member_emai => "{$item->member_name} ({$item->member_emai})"])
                                         ->toArray();
                                 } catch (\Exception $e) {}
 
@@ -99,7 +108,8 @@ class UserResource extends Resource
                                         ->whereNotIn('email', $localEmails)
                                         ->orderBy('name')
                                         ->limit(10)
-                                        ->pluck('name', 'email')
+                                        ->get()
+                                        ->mapWithKeys(fn ($item) => [$item->email => "{$item->name} ({$item->email})"])
                                         ->toArray();
                                 } catch (\Exception $e) {}
 

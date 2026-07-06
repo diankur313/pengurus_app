@@ -6,3 +6,4 @@ $kernel->bootstrap();
 
 $columns = \Illuminate\Support\Facades\Schema::connection('ppab')->getColumnListing('ppab_member');
 echo json_encode($columns, JSON_PRETTY_PRINT);
+

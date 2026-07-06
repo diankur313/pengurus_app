@@ -119,7 +119,7 @@
                     @if($v->used_by_user_id)
                     <div style="font-size:.8rem;color:#059669;margin-top:.6rem;font-weight:600;display:flex;align-items:center;gap:.25rem">
                         <svg style="width:16px;height:16px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        Dipakai oleh {{ $v->usedBy->name ?? 'User ID: ' . $v->used_by_user_id }} <span style="font-size:0.75rem;opacity:0.8;font-weight:400;margin-left:.2rem">({{ $v->used_at ? $v->used_at->format('d M Y H:i') : '' }})</span>
+                        Dipakai oleh {{ $v->used_by_name ?? 'User ID: ' . $v->used_by_user_id }} <span style="font-size:0.75rem;opacity:0.8;font-weight:400;margin-left:.2rem">({{ $v->used_at ? $v->used_at->format('d M Y H:i') : '' }})</span>
                     </div>
                     @else
                     <div style="font-size:.8rem;color:#94a3b8;margin-top:.6rem;font-weight:600;display:flex;align-items:center;gap:.25rem">

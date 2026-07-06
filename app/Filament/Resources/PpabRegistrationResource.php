@@ -27,7 +27,7 @@ class PpabRegistrationResource extends Resource
         return Forms\Components\Section::make($title)
             ->schema([
                 Forms\Components\Grid::make(2)->schema([
-                    Forms\Components\TextInput::make($prefix . 'quota_full')
+                    Forms\Components\TextInput::make($prefix . 'quota_full_original')
                         ->label('Full Payment Quota')
                         ->numeric()
                         ->required(),
@@ -37,7 +37,7 @@ class PpabRegistrationResource extends Resource
                         ->prefix('Rp')
                         ->required(),
 
-                    Forms\Components\TextInput::make($prefix . 'quota_dp')
+                    Forms\Components\TextInput::make($prefix . 'quota_dp_original')
                         ->label('Down Payment Quota')
                         ->numeric()
                         ->required(),
@@ -47,7 +47,7 @@ class PpabRegistrationResource extends Resource
                         ->prefix('Rp')
                         ->required(),
 
-                    Forms\Components\TextInput::make($prefix . 'quota_early_bird')
+                    Forms\Components\TextInput::make($prefix . 'quota_early_bird_original')
                         ->label('Early Bird Quota')
                         ->numeric(),
                     Forms\Components\TextInput::make($prefix . 'price_early_bird')
@@ -68,6 +68,7 @@ class PpabRegistrationResource extends Resource
                 ]),
             ]);
     }
+
 
     public static function form(Form $form): Form
     {

@@ -123,7 +123,7 @@ class CivitasResource extends Resource
                             });
                         });
                     }),
-                TextColumn::make('angkatan')
+                 TextColumn::make('angkatan')
                     ->label('Angkatan')
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->where(function ($q) use ($search) {
@@ -134,6 +134,14 @@ class CivitasResource extends Resource
                                 $q2->where('source_type', 'table_member_lama')
                                     ->whereIn('source_id', MemberLama::where('member_nama_angkatan', 'like', "%{$search}%")->pluck('member_no'));
                             });
+                        });
+                    }),
+                TextColumn::make('paket')
+                    ->label('Paket')
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query->where(function ($q) use ($search) {
+                            $q->where('source_type', 'table_ppab_baru')
+                                ->whereIn('source_id', MemberPpab::where('paket', 'like', "%{$search}%")->pluck('id_member'));
                         });
                     }),
                 TextColumn::make('level_angkatan')

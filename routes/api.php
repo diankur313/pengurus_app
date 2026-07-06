@@ -10,8 +10,16 @@ use App\Http\Controllers\Api\InternalCredentialController;
 // Auth Routes
 Route::post('/auth/login', [AuthController::class, 'login']);
 
-// Xendit Webhook — public endpoint, validasi dilakukan di controller via x-callback-token
-Route::post('/webhook/xendit/invoice', [XenditWebhookController::class, 'handleInvoice']);
+// =====================================================================
+// Xendit Webhook — Unified Entry Point (standar, didaftarkan di Xendit Dashboard)
+// Deteksi tipe webhook (Invoice vs Disbursement) dilakukan di dalam controller.
+// =====================================================================
+Route::post('/webhook/xendit', [XenditWebhookController::class, 'handle']);
+
+// Alias lama — tetap aktif agar tidak breaking untuk apps yang sudah pakai endpoint ini
+Route::post('/webhook/xendit/invoice', [XenditWebhookController::class, 'handle']);
+Route::post('/webhook/xendit/disbursement', [XenditWebhookController::class, 'handle']);
+Route::post('/internal/webhook/invoice', [XenditWebhookController::class, 'handle']);
 
 // Internal API untuk child apps — validasi Bearer Token di controller
 Route::get('/internal/xendit-credentials', [InternalCredentialController::class, 'getCredentials']);
