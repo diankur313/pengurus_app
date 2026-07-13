@@ -32,9 +32,17 @@ class PpabPaymentResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('member.name')
+                Tables\Columns\TextColumn::make('member_name')
                     ->label('Name')
-                    ->searchable()
+                    ->searchable(query: function (\Illuminate\Database\Eloquent\Builder $query, string $search) {
+                        $query->whereExists(function ($q) use ($search) {
+                            $q->select(\Illuminate\Support\Facades\DB::raw(1))
+                                ->from('ppab_member')
+                                ->whereColumn('ppab_member.uuid', 'ppab_transactions_xendit.id_member')
+                                ->whereColumn('ppab_member.id_session', 'ppab_transactions_xendit.id_session')
+                                ->where('ppab_member.name', 'like', "%{$search}%");
+                        });
+                    })
                     ->sortable(),
                 Tables\Columns\TextColumn::make('method')
                     ->label('Channel')
@@ -108,6 +116,16 @@ class PpabPaymentResource extends Resource
     public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
     {
         $query = parent::getEloquentQuery();
+
+        $query->addSelect([
+            'ppab_transactions_xendit.*',
+            'member_name' => \Illuminate\Support\Facades\DB::connection('ppab')
+                ->table('ppab_member')
+                ->whereColumn('ppab_member.uuid', 'ppab_transactions_xendit.id_member')
+                ->whereColumn('ppab_member.id_session', 'ppab_transactions_xendit.id_session')
+                ->select('name')
+                ->limit(1)
+        ]);
 
         // Jika bukan super_admin, batasi hanya melihat transaksi untuk angkatan = 1
         if (! auth()->user()->hasRole('super_admin')) {

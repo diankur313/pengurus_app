@@ -18,6 +18,9 @@ class PpabParticipantStatsWidget extends BaseWidget
     protected function getStats(): array
     {
         $query = PpabParticipant::query()->where('angkatan', '1');
+        
+        // Get active filter from URL
+        $activeFilter = request()->query('paketFilter');
 
         // --- ON PROCESS (Belum Bayar) ---
         $onProcessQuery = (clone $query)->where(function ($q) {
@@ -129,35 +132,41 @@ class PpabParticipantStatsWidget extends BaseWidget
 
         // Row 3: Paket — hanya tampil jika quota tersedia
         if ($sii_quota > 0) {
+            $isActive = $activeFilter === 'sii';
             $stats[] = Stat::make('SII', "{$sii_paid} / {$sii_quota}")
-                ->description('Peserta Paket SII')
+                ->description($isActive ? '✓ Filter Aktif - Peserta Paket SII' : 'Peserta Paket SII')
                 ->descriptionIcon('heroicon-m-academic-cap')
                 ->chart([1, 3, 2, 5, 4, 7, $sii_paid])
                 ->color('primary')
+                ->url(route('filament.admin.resources.ppab-participants.index', ['paketFilter' => 'sii']))
                 ->extraAttributes([
-                    'class' => 'hover:scale-105 hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 border-t-4 border-primary-500 rounded-2xl',
+                    'class' => 'hover:scale-105 hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 border-t-4 border-primary-500 rounded-2xl cursor-pointer' . ($isActive ? ' ring-4 ring-primary-500 scale-105' : ''),
                 ]);
         }
 
         if ($bsq_quota > 0) {
+            $isActive = $activeFilter === 'bsq';
             $stats[] = Stat::make('BSQ', "{$bsq_paid} / {$bsq_quota}")
-                ->description('Peserta Paket BSQ')
+                ->description($isActive ? '✓ Filter Aktif - Peserta Paket BSQ' : 'Peserta Paket BSQ')
                 ->descriptionIcon('heroicon-m-academic-cap')
                 ->chart([2, 1, 4, 3, 6, 5, $bsq_paid])
                 ->color('info')
+                ->url(route('filament.admin.resources.ppab-participants.index', ['paketFilter' => 'bsq']))
                 ->extraAttributes([
-                    'class' => 'hover:scale-105 hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 border-t-4 border-info-500 rounded-2xl',
+                    'class' => 'hover:scale-105 hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 border-t-4 border-info-500 rounded-2xl cursor-pointer' . ($isActive ? ' ring-4 ring-info-500 scale-105' : ''),
                 ]);
         }
 
         if ($siibsq_quota > 0) {
+            $isActive = $activeFilter === 'sii_bsq';
             $stats[] = Stat::make('SII + BSQ', "{$siibsq_paid} / {$siibsq_quota}")
-                ->description('Peserta Paket SII + BSQ')
+                ->description($isActive ? '✓ Filter Aktif - Peserta Paket SII + BSQ' : 'Peserta Paket SII + BSQ')
                 ->descriptionIcon('heroicon-m-academic-cap')
                 ->chart([0, 2, 1, 4, 3, 6, $siibsq_paid])
                 ->color('warning')
+                ->url(route('filament.admin.resources.ppab-participants.index', ['paketFilter' => 'sii_bsq']))
                 ->extraAttributes([
-                    'class' => 'hover:scale-105 hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 border-t-4 border-warning-500 rounded-2xl',
+                    'class' => 'hover:scale-105 hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 border-t-4 border-warning-500 rounded-2xl cursor-pointer' . ($isActive ? ' ring-4 ring-warning-500 scale-105' : ''),
                 ]);
         }
 

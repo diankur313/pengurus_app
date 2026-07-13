@@ -24,9 +24,12 @@ class XenditFeeCalculatorService
         // Fee sysdev dari konfigurasi DB (flat)
         $feeSysdev = $feeRule ? (int) $feeRule->sysdev_fee : 0;
 
-        // PPN atas fee PG (jika dikonfigurasi)
+        // PPN 11% HANYA untuk metode Virtual Account / Bank Transfer
+        $method = strtoupper($paymentMethod);
+        $isVirtualAccount = str_contains($method, 'VIRTUAL_ACCOUNT') || str_contains($method, 'BANK_TRANSFER');
+        
         $ppn = $feeRule ? (float) $feeRule->ppn : 0;
-        if ($ppn > 0) {
+        if ($ppn > 0 && $isVirtualAccount) {
             $feePg = (int) round($feePg * (1 + $ppn / 100));
         }
 

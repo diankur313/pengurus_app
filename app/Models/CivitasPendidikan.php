@@ -102,4 +102,9 @@ class CivitasPendidikan extends Model
         }
         return $value;
     }
+
+    public function mutabaahQurans()
+    {
+        return $this->hasMany(MutabaahQuran::class, 'civitas_id', 'uuid');
+    }
 }

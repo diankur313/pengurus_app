@@ -6,14 +6,76 @@ use App\Filament\Resources\CivitasResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ManageRecords;
 use Filament\Forms;
+use Illuminate\Database\Eloquent\Builder;
 
 class ManageCivitas extends ManageRecords
 {
     protected static string $resource = CivitasResource::class;
 
-    protected function getHeaderActions(): array
+    protected function getHeaderWidgets(): array
     {
         return [
+            \App\Filament\Resources\CivitasResource\Widgets\CivitasStatsWidget::class,
+        ];
+    }
+
+    protected function getTableQuery(): Builder
+    {
+        $query = parent::getTableQuery();
+        
+        $paketFilter = request()->query('paketFilter');
+        
+        if ($paketFilter) {
+            $query->where('source_type', 'table_ppab_baru');
+            
+            switch ($paketFilter) {
+                case 'sii':
+                    $ids = \App\Models\MemberPpab::where('paket', 'like', '%sii%')
+                        ->where('paket', 'not like', '%bsq%')
+                        ->pluck('id_member');
+                    $query->whereIn('source_id', $ids);
+                    break;
+                    
+                case 'bsq':
+                    $ids = \App\Models\MemberPpab::where('paket', 'like', '%bsq%')
+                        ->where('paket', 'not like', '%sii%')
+                        ->pluck('id_member');
+                    $query->whereIn('source_id', $ids);
+                    break;
+                    
+                case 'sii_bsq':
+                    $ids = \App\Models\MemberPpab::where('paket', 'like', '%sii%')
+                        ->where('paket', 'like', '%bsq%')
+                        ->pluck('id_member');
+                    $query->whereIn('source_id', $ids);
+                    break;
+            }
+        }
+        
+        return $query;
+    }
+
+    public function getTitle(): string
+    {
+        $paketFilter = request()->query('paketFilter');
+        
+        if ($paketFilter) {
+            $filterName = match($paketFilter) {
+                'sii' => 'SII',
+                'bsq' => 'BSQ',
+                'sii_bsq' => 'SII + BSQ',
+                default => ''
+            };
+            
+            return "Daftar Civitas - Paket {$filterName}";
+        }
+        
+        return 'Daftar Civitas';
+    }
+
+    protected function getHeaderActions(): array
+    {
+        $actions = [
             Actions\Action::make('synchronize')
                 ->label('Synchronize Member')
                 ->icon('heroicon-o-arrow-path')
@@ -129,6 +191,18 @@ class ManageCivitas extends ManageRecords
                         ->send();
                 })
         ];
+
+        $paketFilter = request()->query('paketFilter');
+        if ($paketFilter) {
+            $actions[] = Actions\Action::make('clearFilter')
+                ->label('Clear Filter')
+                ->icon('heroicon-o-x-circle')
+                ->color('gray')
+                ->url(route('filament.admin.resources.civitas.index'))
+                ->outlined();
+        }
+
+        return $actions;
     }
 
     public function getFooter(): ?\Illuminate\Contracts\View\View

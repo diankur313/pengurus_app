@@ -34,6 +34,8 @@ class KtaPpabTable extends Component implements HasForms, HasTable
     {
         if (!empty($this->selectedAngkatan)) {
             $ids = MemberPpab::where('nama_angkatan', $this->selectedAngkatan)
+                             ->whereNotNull('id_member')
+                             ->where('id_member', '!=', '')
                              ->pluck('id_member')
                              ->toArray();
             $this->selectedRows = array_map('strval', $ids);
@@ -45,6 +47,8 @@ class KtaPpabTable extends Component implements HasForms, HasTable
     public function getAngkatanOptionsProperty()
     {
         return MemberPpab::query()
+            ->whereNotNull('id_member')
+            ->where('id_member', '!=', '')
             ->whereNotNull('nama_angkatan')
             ->where('nama_angkatan', '!=', '')
             ->distinct()
@@ -95,7 +99,10 @@ class KtaPpabTable extends Component implements HasForms, HasTable
         if (count($this->selectedRows) > 0) {
             $users = MemberPpab::whereIn('id_member', $this->selectedRows)->get();
         } elseif (!empty($this->selectedAngkatan)) {
-            $users = MemberPpab::where('nama_angkatan', $this->selectedAngkatan)->get();
+            $users = MemberPpab::where('nama_angkatan', $this->selectedAngkatan)
+                               ->whereNotNull('id_member')
+                               ->where('id_member', '!=', '')
+                               ->get();
         }
 
         if (!$users || $users->isEmpty()) {
@@ -123,10 +130,15 @@ class KtaPpabTable extends Component implements HasForms, HasTable
         return response()->download($zipPath)->deleteFileAfterSend(true);
     }
 
+    public function getTableRecordKey(\Illuminate\Database\Eloquent\Model $record): string
+    {
+        return (string) ($record->id_member ?? $record->id);
+    }
+
     public function table(Table $table): Table
     {
         return $table
-            ->query(MemberPpab::query())
+            ->query(MemberPpab::query()->whereNotNull('id_member')->where('id_member', '!=', ''))
             ->columns([
                 ViewColumn::make('select')
                     ->label('')

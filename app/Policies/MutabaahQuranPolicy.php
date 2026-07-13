@@ -3,10 +3,10 @@
 namespace App\Policies;
 
 use App\Models\User;
-use App\Models\PaymentGatewayFee;
+use App\Models\MutabaahQuran;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
-class PaymentGatewayFeePolicy
+class MutabaahQuranPolicy
 {
     use HandlesAuthorization;
 
@@ -15,15 +15,15 @@ class PaymentGatewayFeePolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_xendit::webhook');
+        return $user->can('view_any_mutabaah::quran');
     }
 
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, PaymentGatewayFee $paymentGatewayFee): bool
+    public function view(User $user, MutabaahQuran $mutabaahQuran): bool
     {
-        return $user->can('view_xendit::webhook');
+        return $user->can('view_mutabaah::quran');
     }
 
     /**
@@ -31,23 +31,23 @@ class PaymentGatewayFeePolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create_xendit::webhook');
+        return $user->can('create_mutabaah::quran');
     }
 
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, PaymentGatewayFee $paymentGatewayFee): bool
+    public function update(User $user, MutabaahQuran $mutabaahQuran): bool
     {
-        return $user->can('update_xendit::webhook');
+        return $user->can('update_mutabaah::quran');
     }
 
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, PaymentGatewayFee $paymentGatewayFee): bool
+    public function delete(User $user, MutabaahQuran $mutabaahQuran): bool
     {
-        return $user->can('delete_xendit::webhook');
+        return $user->can('delete_mutabaah::quran');
     }
 
     /**
@@ -55,15 +55,15 @@ class PaymentGatewayFeePolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_xendit::webhook');
+        return $user->can('delete_any_mutabaah::quran');
     }
 
     /**
      * Determine whether the user can permanently delete.
      */
-    public function forceDelete(User $user, PaymentGatewayFee $paymentGatewayFee): bool
+    public function forceDelete(User $user, MutabaahQuran $mutabaahQuran): bool
     {
-        return $user->can('force_delete_xendit::webhook');
+        return $user->can('force_delete_mutabaah::quran');
     }
 
     /**
@@ -71,15 +71,15 @@ class PaymentGatewayFeePolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_xendit::webhook');
+        return $user->can('force_delete_any_mutabaah::quran');
     }
 
     /**
      * Determine whether the user can restore.
      */
-    public function restore(User $user, PaymentGatewayFee $paymentGatewayFee): bool
+    public function restore(User $user, MutabaahQuran $mutabaahQuran): bool
     {
-        return $user->can('restore_xendit::webhook');
+        return $user->can('restore_mutabaah::quran');
     }
 
     /**
@@ -87,15 +87,15 @@ class PaymentGatewayFeePolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_xendit::webhook');
+        return $user->can('restore_any_mutabaah::quran');
     }
 
     /**
      * Determine whether the user can replicate.
      */
-    public function replicate(User $user, PaymentGatewayFee $paymentGatewayFee): bool
+    public function replicate(User $user, MutabaahQuran $mutabaahQuran): bool
     {
-        return $user->can('replicate_xendit::webhook');
+        return $user->can('replicate_mutabaah::quran');
     }
 
     /**
@@ -103,6 +103,6 @@ class PaymentGatewayFeePolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_xendit::webhook');
+        return $user->can('reorder_mutabaah::quran');
     }
 }

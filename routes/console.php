@@ -61,7 +61,8 @@ Schedule::call(function () {
 // Auto Sync Civitas Member (3 bulan registrasi terakhir / 5 bulan presensi terakhir)
 Schedule::call(function () {
     // Ambil data ppab_member dalam 3 bulan terakhir
-    $recentPpabIds = \App\Models\MemberPpab::where('created_at', '>=', now()->subMonths(3))
+    $recentPpabIds = \App\Models\MemberPpab::where('updated_at', '>=', now()->subMonths(3))
+        ->where('angkatan','1')
         ->pluck('id_member')
         ->toArray();
 

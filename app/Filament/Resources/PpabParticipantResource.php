@@ -376,6 +376,7 @@ class PpabParticipantResource extends Resource
                     ->label('Tipe Pembayaran')
                     ->getStateUsing(function ($record) {
                         $payment = \App\Models\PpabPayment::where('id_member', $record->uuid)
+                            ->where('id_session', $record->id_session)
                             ->orderByRaw("FIELD(status, 'PAID', 'PENDING', 'EXPIRED') ASC")
                             ->latest()
                             ->first();

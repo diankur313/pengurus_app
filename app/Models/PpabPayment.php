@@ -27,6 +27,13 @@ class PpabPayment extends Model
 
     public function member()
     {
-        return $this->belongsTo(PpabParticipant::class, 'id_member', 'uuid');
+        return $this->belongsTo(PpabParticipant::class, 'id_member', 'uuid')
+            ->where(function ($query) {
+                if ($this->exists && isset($this->id_session)) {
+                    $query->where('ppab_member.id_session', $this->id_session);
+                } else {
+                    $query->whereColumn('ppab_member.id_session', 'ppab_transactions_xendit.id_session');
+                }
+            });
     }
 }
