@@ -8,7 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('xendit_webhook_logs', function (Blueprint $table) {
+        // Gunakan koneksi 'ppab' sesuai dengan model XenditWebhookLog
+        Schema::connection('ppab')->create('xendit_webhook_logs', function (Blueprint $table) {
             $table->id();
             $table->string('external_id')->index();
             $table->string('app_id')->index()->nullable()->comment('ID aplikasi klien, misal: join-ppab, e-yac');
@@ -31,6 +32,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('xendit_webhook_logs');
+        Schema::connection('ppab')->dropIfExists('xendit_webhook_logs');
     }
 };

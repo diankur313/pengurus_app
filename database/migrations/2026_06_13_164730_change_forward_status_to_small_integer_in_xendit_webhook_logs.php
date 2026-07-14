@@ -11,14 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('xendit_webhook_logs', function (Blueprint $table) {
+        Schema::connection('ppab')->table('xendit_webhook_logs', function (Blueprint $table) {
             $table->smallInteger('forward_status')->nullable()->comment('HTTP status code hasil forward ke child app')->change();
         });
     }
 
     public function down(): void
     {
-        Schema::table('xendit_webhook_logs', function (Blueprint $table) {
+        Schema::connection('ppab')->table('xendit_webhook_logs', function (Blueprint $table) {
             $table->tinyInteger('forward_status')->nullable()->comment('HTTP status code hasil forward ke child app')->change();
         });
     }
