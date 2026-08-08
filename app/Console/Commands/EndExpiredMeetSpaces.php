@@ -18,7 +18,16 @@ class EndExpiredMeetSpaces extends Command
         $thirtyMinsAgo = now()->subMinutes(30);
         $twoHoursAgo   = now()->subHours(2);
 
-        $service = new GoogleMeetService();
+        try {
+            $service = new GoogleMeetService();
+        } catch (\Exception $e) {
+            Log::error('EndExpiredMeetSpaces: Failed to initialize GoogleMeetService', [
+                'error' => $e->getMessage(),
+            ]);
+            $this->error('Failed to initialize Google Meet service: ' . $e->getMessage());
+            return self::FAILURE;
+        }
+        
         $restrictedCount = 0;
         $expiredCount    = 0;
 

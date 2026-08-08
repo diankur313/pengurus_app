@@ -51,7 +51,7 @@ class MeetReminderMail extends Mailable
         };
 
         $teacherName = $this->schedule->teacher?->name ?? '-';
-        $angkatan    = $this->schedule->level === 'dasar' ? 'Angkatan Dasar' : 'Angkatan Lanjutan';
+        $angkatan    = $this->schedule->levelLabel();
         $tipe        = ucfirst($this->schedule->type ?? 'pembelajaran');
 
         return new Content(

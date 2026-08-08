@@ -39,7 +39,7 @@ class TeacherResource extends Resource
                             ->afterStateUpdated(function ($state) {
                                 if (!$state) return;
                                 try {
-                                    $manager  = new ImageManager(new Driver());
+                                    $manager  = new ImageManager(Driver::class);
                                     $fullPath = Storage::disk('public')->path($state);
                                     $image    = $manager->decode($fullPath);
                                     $image->save($fullPath, quality: 60);

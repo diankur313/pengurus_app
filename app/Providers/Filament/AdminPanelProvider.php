@@ -130,6 +130,9 @@ class AdminPanelProvider extends PanelProvider
                 \Filament\Navigation\NavigationGroup::make()
                     ->label('Pendidikan')
                     ->collapsible(true),
+                \Filament\Navigation\NavigationGroup::make()
+                    ->label('PR / Humas')
+                    ->collapsible(true),
             ])
             ->userMenuItems([
                 MenuItem::make()

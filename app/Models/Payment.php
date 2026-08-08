@@ -11,9 +11,9 @@ class Payment extends Model
 {
     protected $fillable = [
         // Info Penagihan
-        'desc', 'start', 'end',
+        'desc', 'start', 'end', 'level',
         'va', 'qris', 'cs',
-        'amount_dasar', 'amount_lanjutan', 'payment_method',
+        'semester_2', 'semester_3', 'payment_method',
         // Reminder
         'send_reminder', 'reminder_days_before', 'reminder_sent',
         // Gateway & Finance
@@ -32,8 +32,8 @@ class Payment extends Model
         'va'                   => 'boolean',
         'qris'                 => 'boolean',
         'cs'                   => 'boolean',
-        'amount_dasar'         => 'decimal:2',
-        'amount_lanjutan'      => 'decimal:2',
+        'semester_2'           => 'decimal:2',
+        'semester_3'           => 'decimal:2',
         'payment_method'       => 'array',
         'send_reminder'        => 'boolean',
         'reminder_sent'        => 'boolean',

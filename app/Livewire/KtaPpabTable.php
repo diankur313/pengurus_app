@@ -14,6 +14,7 @@ use Filament\Forms\Components\Select;
 use App\Models\MemberPpab;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Concerns\InteractsWithForms;
+use Illuminate\Support\Facades\DB;
 use ZipArchive;
 use Illuminate\Support\Facades\File;
 
@@ -82,8 +83,13 @@ class KtaPpabTable extends Component implements HasForms, HasTable
             $user = MemberPpab::where('id_member', $this->selectedRows[0])->first();
             if (!$user) return;
 
+            $namaAngkatan = DB::connection('ppab')
+                ->table('ppab_nama_angkatans')
+                ->where('id', $user->angkatan)
+                ->value('nama_angkatan');
+
             $nama     = (string) $user->name;
-            $angkatan = (string) $user->nama_angkatan;
+            $angkatan = (string) ($namaAngkatan ?? '');
             $nomor    = (string) $user->id_member;
 
             $imageContent = generateKtaImageContent($nama, $angkatan, $nomor);
@@ -113,10 +119,17 @@ class KtaPpabTable extends Component implements HasForms, HasTable
         $zipPath = storage_path('app/public/' . $zipFileName);
 
         $zip = new ZipArchive();
+        // Preload all angkatan names for batch
+        $angkatanIds = $users->pluck('angkatan')->unique()->filter()->values();
+        $angkatanMap = DB::connection('ppab')
+            ->table('ppab_nama_angkatans')
+            ->whereIn('id', $angkatanIds)
+            ->pluck('nama_angkatan', 'id');
+
         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
             foreach ($users as $user) {
                 $nama     = (string) $user->name;
-                $angkatan = (string) $user->nama_angkatan;
+                $angkatan = (string) ($angkatanMap[$user->angkatan] ?? '');
                 $nomor    = (string) $user->id_member;
 
                 $imageContent = generateKtaImageContent($nama, $angkatan, $nomor);

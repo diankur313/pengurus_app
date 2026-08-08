@@ -57,6 +57,8 @@
 .pinput:focus{outline:none;border-color:#0ea5e9;background:#fff;box-shadow:0 0 0 4px rgba(14,165,233,0.15)}
 .dark .pinput{background:#0f172a;border-color:#334155;color:#e2e8f0;box-shadow:inset 0 2px 4px rgba(0,0,0,0.2)}
 .dark .pinput:focus{background:#1e293b;border-color:#38bdf8;box-shadow:0 0 0 4px rgba(56,189,248,0.15)}
+select.pinput{-webkit-appearance:none;-moz-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .75rem center;background-size:1rem;padding-right:2.5rem}
+.dark select.pinput{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")}
 .plbl{font-size:.8rem;font-weight:700;color:#334155;margin-bottom:.35rem;display:block;letter-spacing:0.01em}
 .dark .plbl{color:#cbd5e1}
 /* ── Modal ── */
@@ -121,11 +123,12 @@
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem">
                 <div style="flex:1">
                     <div class="pc-title">{{ $p->desc }}</div>
-                    <div class="pc-sub">📅 <span style="font-weight:600">{{ $p->start?->format('d M Y') }}</span> — <span style="font-weight:600">{{ $p->end?->format('d M Y') }}</span></div>
+                    <div class="pc-sub">📅 <span style="font-weight:600">{{ $p->start?->format('d M Y') }}</span> — <span style="font-weight:600">{{ $p->end?->format('d M Y') }}</span>
+                        @php $levelLabels = ['semester_2' => 'Semester 2', 'semester_3' => 'Semester 3']; @endphp
+                        <span style="color:#cbd5e1;margin:0 8px">|</span>🎓 <strong>{{ $levelLabels[$p->level] ?? $p->level }}</strong>
+                    </div>
                     <div class="pc-sub" style="margin-top:.4rem;background:var(--card-bg, rgba(241,245,249,0.5));padding:0.5rem 0.75rem;border-radius:0.5rem;display:inline-block">
-                        💰 Dasar: <strong style="color:#0ea5e9;font-size:0.95rem">Rp {{ number_format($p->amount_dasar,0,',','.') }}</strong>
-                        <span style="color:#cbd5e1;margin:0 8px">|</span>
-                        Lanjutan: <strong style="color:#6366f1;font-size:0.95rem">Rp {{ number_format($p->amount_lanjutan,0,',','.') }}</strong>
+                        💰 Nominal: <strong style="color:#0ea5e9;font-size:0.95rem">Rp {{ number_format($p->level === 'semester_3' ? $p->semester_3 : $p->semester_2,0,',','.') }}</strong>
                     </div>
                     <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem">
                         @if($p->va)   <span class="pb pb-blue">🏧 VA</span>   @endif
@@ -293,17 +296,20 @@
             </div>
         </div>
 
-        <div class="pg2" style="margin-bottom:.9rem">
-            <div>
-                <label class="plbl">Nominal Dasar (Rp) *</label>
-                <input wire:model="amount_dasar" type="number" min="0" class="pinput">
-                @error('amount_dasar') <div style="font-size:.73rem;color:#dc2626;margin-top:.2rem">{{ $message }}</div> @enderror
-            </div>
-            <div>
-                <label class="plbl">Nominal Lanjutan (Rp) *</label>
-                <input wire:model="amount_lanjutan" type="number" min="0" class="pinput">
-                @error('amount_lanjutan') <div style="font-size:.73rem;color:#dc2626;margin-top:.2rem">{{ $message }}</div> @enderror
-            </div>
+        <div style="margin-bottom:.9rem">
+            <label class="plbl">Level *</label>
+            <select wire:model="level" class="pinput" style="width:100%">
+                <option value="">-- Pilih Level --</option>
+                <option value="semester_2">Semester 2</option>
+                <option value="semester_3">Semester 3</option>
+            </select>
+            @error('level') <div style="font-size:.73rem;color:#dc2626;margin-top:.2rem">{{ $message }}</div> @enderror
+        </div>
+
+        <div style="margin-bottom:.9rem">
+            <label class="plbl">Nominal {{ $level === 'semester_3' ? 'Semester 3' : ($level === 'semester_2' ? 'Semester 2' : '(pilih level dulu)') }} (Rp) *</label>
+            <input wire:model="nominal" type="number" min="0" class="pinput" placeholder="0">
+            @error('nominal') <div style="font-size:.73rem;color:#dc2626;margin-top:.2rem">{{ $message }}</div> @enderror
         </div>
 
         <div style="margin-bottom:.9rem">

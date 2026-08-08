@@ -14,6 +14,16 @@ class ListPpabPayments extends ListRecords
     {
         return [
             Actions\CreateAction::make(),
+            Actions\Action::make('report')
+                ->label('Report')
+                ->icon('heroicon-o-document-text')
+                ->color('info')
+                ->modalHeading('Pilih Tipe Report')
+                ->modalDescription('Silakan pilih jenis report yang ingin Anda generate')
+                ->modalSubmitAction(false)
+                ->modalCancelActionLabel('Tutup')
+                ->modalContent(view('filament.modals.ppab-payment-report'))
+                ->visible(fn () => auth()->user()?->can('report_ppab::payment')),
         ];
     }
 
@@ -30,26 +40,26 @@ class ListPpabPayments extends ListRecords
      */
     public function updatedTableFilters(): void
     {
-        $angkatan = data_get($this->tableFilters, 'angkatan.value');
-        $this->dispatch('ppab-payment-filter-changed', angkatan: $angkatan);
+        $session = data_get($this->tableFilters, 'session.value');
+        $this->dispatch('ppab-payment-filter-changed', session: $session);
     }
 
     public function resetTableFiltersForm(): void
     {
         parent::resetTableFiltersForm();
-        $this->dispatch('ppab-payment-filter-changed', angkatan: null);
+        $this->dispatch('ppab-payment-filter-changed', session: null);
     }
 
     public function removeTableFilters(): void
     {
         parent::removeTableFilters();
-        $this->dispatch('ppab-payment-filter-changed', angkatan: null);
+        $this->dispatch('ppab-payment-filter-changed', session: null);
     }
 
     public function removeTableFilter(string $filterName, ?string $field = null, bool $isRemovingAllFilters = false): void
     {
         parent::removeTableFilter($filterName, $field, $isRemovingAllFilters);
-        $angkatan = data_get($this->tableFilters, 'angkatan.value');
-        $this->dispatch('ppab-payment-filter-changed', angkatan: $angkatan);
+        $session = data_get($this->tableFilters, 'session.value');
+        $this->dispatch('ppab-payment-filter-changed', session: $session);
     }
 }

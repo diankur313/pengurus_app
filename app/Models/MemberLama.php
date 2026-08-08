@@ -8,8 +8,7 @@ class MemberLama extends Model
 {
     protected $connection = 'yisic_db_lama';
     protected $table = 'member';
-    protected $primaryKey = 'member_no';
-    
+
     public $timestamps = false;
     protected $guarded = [];
 }

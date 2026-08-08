@@ -35,7 +35,7 @@ class KartuTandaAnggota extends Page implements HasForms, HasTable
     {
         if (!empty($this->selectedAngkatan)) {
             $ids = MemberLama::where('member_nama_angkatan', $this->selectedAngkatan)
-                             ->pluck('member_no')
+                             ->pluck('id')
                              ->toArray();
             $this->selectedRows = array_map('strval', $ids);
         } else {
@@ -76,7 +76,7 @@ class KartuTandaAnggota extends Page implements HasForms, HasTable
 
         if (count($this->selectedRows) === 1 && empty($this->selectedAngkatan)) {
             // Unduh Tunggal
-            $user = MemberLama::where('member_no', $this->selectedRows[0])->first();
+            $user = MemberLama::find($this->selectedRows[0]);
             if (!$user) return;
 
             $nama     = (string) $user->member_name;
@@ -94,7 +94,7 @@ class KartuTandaAnggota extends Page implements HasForms, HasTable
         $users = null;
 
         if (count($this->selectedRows) > 0) {
-            $users = MemberLama::whereIn('member_no', $this->selectedRows)->get();
+            $users = MemberLama::whereIn('id', $this->selectedRows)->get();
         } elseif (!empty($this->selectedAngkatan)) {
             $users = MemberLama::where('member_nama_angkatan', $this->selectedAngkatan)->get();
         }
@@ -176,7 +176,7 @@ class KartuTandaAnggota extends Page implements HasForms, HasTable
                     ->width(120)
                     ->height(75)
                     ->extraAttributes(fn ($record) => [
-                        'x-on:click' => "window.location.href='" . url('/kta-download/lama/' . $record->member_no) . "';",
+                        'x-on:click' => "window.location.href='" . url('/kta-download/lama/' . $record->getKey()) . "';",
                         'style'      => 'cursor: pointer; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); transition: transform 0.15s; display: block;',
                         'title'      => 'Klik untuk download KTA',
                         'x-on:mouseenter' => "\$el.style.transform='scale(1.05)'",

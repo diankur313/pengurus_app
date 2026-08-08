@@ -64,4 +64,22 @@ class AuthController extends Controller
             'message' => 'Logout berhasil',
         ]);
     }
+
+    /**
+     * Get current authenticated user info.
+     */
+    public function user(Request $request)
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'photo' => $user->getFilamentAvatarUrl(),
+            ],
+        ]);
+    }
 }

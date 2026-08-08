@@ -205,7 +205,7 @@ class EditProfile extends Page implements Forms\Contracts\HasForms
         $newPath = $disk->path($randomName);
 
         try {
-            $manager = new ImageManager(new Driver());
+            $manager = new ImageManager(Driver::class);
             $image = $manager->decode($filePath);
 
             // Check file size (3MB = 3,145,728 bytes)

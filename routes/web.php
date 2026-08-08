@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Response;
 use App\Http\Controllers\KtaController;
 use App\Http\Controllers\GoogleAuthController;
+use App\Http\Controllers\PpabFinanceReportController;
 
 // Serve profile pictures from local (private) or external storage
 Route::get('/profile-picture/{filename}', function (string $filename) {
@@ -50,7 +51,6 @@ Route::get('/profile-picture/{filename}', function (string $filename) {
 
 // Download KTA (Kartu Tanda Anggota)
 Route::get('/kta-download/{source}/{id}', [KtaController::class, 'download'])
-    ->middleware('auth')
     ->name('kta.download');
 
 // Google OAuth2 — one-time authorization untuk Meet API
@@ -64,3 +64,12 @@ Route::get('/google/auth/callback', [GoogleAuthController::class, 'callback'])
 Route::get('/google/auth/status', [GoogleAuthController::class, 'status'])
     ->middleware('auth')
     ->name('google.auth.status');
+
+// PPAB Finance Report (Excel Export) — auth required
+Route::middleware('auth')->group(function () {
+    Route::get('/ppab-finance-report/internal', [PpabFinanceReportController::class, 'exportInternal'])
+        ->name('ppab.finance.internal');
+
+    Route::get('/ppab-finance-report/panitia', [PpabFinanceReportController::class, 'exportPanitia'])
+        ->name('ppab.finance.panitia');
+});

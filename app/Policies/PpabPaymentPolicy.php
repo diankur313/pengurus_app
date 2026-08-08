@@ -63,7 +63,7 @@ class PpabPaymentPolicy
      */
     public function forceDelete(User $user, PpabPayment $ppabPayment): bool
     {
-        return $user->can('force_delete_ppab::payment');
+        return $user->can('{{ ForceDelete }}');
     }
 
     /**
@@ -71,7 +71,7 @@ class PpabPaymentPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_ppab::payment');
+        return $user->can('{{ ForceDeleteAny }}');
     }
 
     /**
@@ -79,7 +79,7 @@ class PpabPaymentPolicy
      */
     public function restore(User $user, PpabPayment $ppabPayment): bool
     {
-        return $user->can('restore_ppab::payment');
+        return $user->can('{{ Restore }}');
     }
 
     /**
@@ -87,7 +87,7 @@ class PpabPaymentPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_ppab::payment');
+        return $user->can('{{ RestoreAny }}');
     }
 
     /**
@@ -95,7 +95,7 @@ class PpabPaymentPolicy
      */
     public function replicate(User $user, PpabPayment $ppabPayment): bool
     {
-        return $user->can('replicate_ppab::payment');
+        return $user->can('{{ Replicate }}');
     }
 
     /**
@@ -103,6 +103,14 @@ class PpabPaymentPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_ppab::payment');
+        return $user->can('{{ Reorder }}');
+    }
+
+    /**
+     * Determine whether the user can generate reports.
+     */
+    public function report(User $user): bool
+    {
+        return $user->can('report_ppab::payment');
     }
 }

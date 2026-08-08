@@ -91,11 +91,7 @@ class EducationScheduleResource extends Resource
                 // ─── Angkatan ──────────────────────────────────────────────
                 Forms\Components\Select::make('level')
                     ->label('Angkatan')
-                    ->options([
-                        'general'  => 'General (Dasar dan Lanjutan)',
-                        'dasar'    => 'Angkatan Dasar',
-                        'lanjutan' => 'Angkatan Lanjutan',
-                    ])
+                    ->options(EducationSchedule::levelOptions())
                     ->required()
                     ->searchable(),
 
@@ -259,14 +255,12 @@ class EducationScheduleResource extends Resource
 
                 Tables\Columns\BadgeColumn::make('level')
                     ->label('Angkatan')
-                    ->formatStateUsing(function (string $state): string {
-                        if ($state === 'general') return 'General';
-                        return ucfirst($state);
-                    })
+                    ->formatStateUsing(fn (string $state) => EducationSchedule::levelOptions()[$state] ?? ucfirst($state))
                     ->colors([
                         'success' => 'general',
-                        'primary' => 'dasar',
-                        'info'    => 'lanjutan',
+                        'primary' => 'semester_1',
+                        'info'    => 'semester_2',
+                        'warning' => 'semester_3',
                     ])
                     ->sortable(),
             ])
@@ -353,6 +347,14 @@ class EducationScheduleResource extends Resource
                     ->after(function ($livewire) {
                         $livewire->dispatch('refreshCalendar');
                     }),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->after(function ($livewire) {
+                            $livewire->dispatch('refreshCalendar');
+                        }),
+                ]),
             ]);
     }
 

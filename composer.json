@@ -12,9 +12,11 @@
         "filament/filament": "^3.2",
         "google/apiclient": "^2.0",
         "intervention/image": "^4.0",
+        "intervention/image-laravel": "^4.1",
         "laravel/framework": "^11.31",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.9",
+        "maatwebsite/excel": "^3.1",
         "saade/filament-fullcalendar": "^3.2",
         "spatie/laravel-permission": "^6.25"
     },

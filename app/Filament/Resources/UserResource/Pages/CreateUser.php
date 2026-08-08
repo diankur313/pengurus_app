@@ -10,6 +10,12 @@ class CreateUser extends CreateRecord
 {
     protected static string $resource = UserResource::class;
 
+    // Redirect ke halaman index setelah data tersimpan
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
+
     // Fungsi ini seperti logika di Controller sebelum Model::create()
     protected function mutateFormDataBeforeCreate(array $data): array
     {

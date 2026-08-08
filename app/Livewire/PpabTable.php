@@ -40,6 +40,10 @@ class PpabTable extends Component implements HasForms, HasTable
                         : null
                     )
                     ->defaultImageUrl(fn ($record) => profilePhotoUrl(null, $record->name)),
+                TextColumn::make('id_member')
+                    ->label('Member ID')
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('name')
                     ->label('Nama')
                     ->searchable()

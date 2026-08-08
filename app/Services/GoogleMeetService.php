@@ -53,6 +53,15 @@ class GoogleMeetService
             if (!empty($token['refresh_token'])) {
                 $newToken = $client->fetchAccessTokenWithRefreshToken($token['refresh_token']);
 
+                // Check if refresh failed
+                if (!isset($newToken['access_token'])) {
+                    $errorMsg = $newToken['error_description'] ?? $newToken['error'] ?? 'Unknown error';
+                    throw new Exception(
+                        'Failed to refresh Google OAuth token: ' . $errorMsg . '. ' .
+                        'Admin harus re-authorize di ' . url('/google/auth')
+                    );
+                }
+
                 // Pertahankan refresh_token lama jika tidak dikembalikan
                 if (empty($newToken['refresh_token'])) {
                     $newToken['refresh_token'] = $token['refresh_token'];
@@ -273,7 +282,7 @@ class GoogleMeetService
     protected function buildCalendarEvent(EducationSchedule $schedule, ?string $meetLink = null): Event
     {
         $teacherName = $schedule->teacher?->name ?? 'Pengajar';
-        $angkatan    = $schedule->level === 'dasar' ? 'Angkatan Dasar' : 'Angkatan Lanjutan';
+        $angkatan    = $schedule->levelLabel();
 
         $description = $schedule->meet_description
             ?? "Sesi {$schedule->type} - {$angkatan}\nUstadz: {$teacherName}";

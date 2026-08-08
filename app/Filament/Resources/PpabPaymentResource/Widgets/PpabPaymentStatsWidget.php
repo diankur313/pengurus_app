@@ -10,16 +10,16 @@ use Livewire\Attributes\On;
 class PpabPaymentStatsWidget extends BaseWidget
 {
     /**
-     * Current angkatan filter value, synced from the table via Livewire event.
+     * Current session filter value, synced from the table via Livewire event.
      */
-    public ?string $angkatanFilter = null;
+    public ?string $sessionFilter = null;
 
     /**
      * Initialize filter from URL on first (full) page load.
      */
     public function mount(): void
     {
-        $this->angkatanFilter = request()->query('tableFilters')['angkatan']['value'] ?? null;
+        $this->sessionFilter = request()->query('tableFilters')['session']['value'] ?? null;
     }
 
     /**
@@ -27,9 +27,9 @@ class PpabPaymentStatsWidget extends BaseWidget
      * Updates the reactive property, causing Livewire to re-render with new stats.
      */
     #[On('ppab-payment-filter-changed')]
-    public function onFilterChanged(?string $angkatan = null): void
+    public function onFilterChanged(?string $session = null): void
     {
-        $this->angkatanFilter = $angkatan;
+        $this->sessionFilter = $session;
     }
 
     protected function getColumns(): int
@@ -39,17 +39,15 @@ class PpabPaymentStatsWidget extends BaseWidget
 
     protected function getStats(): array
     {
-        $angkatanFilter = $this->angkatanFilter;
+        $sessionFilter = $this->sessionFilter;
 
         // Only count transactions with status PAID
         $baseQuery = PpabPayment::query()
             ->where('status', 'PAID');
 
-        // Apply angkatan filter if present
-        if ($angkatanFilter) {
-            $baseQuery->whereHas('member', function ($q) use ($angkatanFilter) {
-                $q->where('angkatan', $angkatanFilter);
-            });
+        // Apply session filter if present
+        if ($sessionFilter) {
+            $baseQuery->where('id_session', $sessionFilter);
         }
 
         // If not super_admin, limit to angkatan = 1

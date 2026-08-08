@@ -26,28 +26,20 @@ class ManageCivitas extends ManageRecords
         $paketFilter = request()->query('paketFilter');
         
         if ($paketFilter) {
-            $query->where('source_type', 'table_ppab_baru');
-            
             switch ($paketFilter) {
                 case 'sii':
-                    $ids = \App\Models\MemberPpab::where('paket', 'like', '%sii%')
-                        ->where('paket', 'not like', '%bsq%')
-                        ->pluck('id_member');
-                    $query->whereIn('source_id', $ids);
+                    $query->where('paket', 'like', '%sii%')
+                        ->where('paket', 'not like', '%bsq%');
                     break;
                     
                 case 'bsq':
-                    $ids = \App\Models\MemberPpab::where('paket', 'like', '%bsq%')
-                        ->where('paket', 'not like', '%sii%')
-                        ->pluck('id_member');
-                    $query->whereIn('source_id', $ids);
+                    $query->where('paket', 'like', '%bsq%')
+                        ->where('paket', 'not like', '%sii%');
                     break;
                     
                 case 'sii_bsq':
-                    $ids = \App\Models\MemberPpab::where('paket', 'like', '%sii%')
-                        ->where('paket', 'like', '%bsq%')
-                        ->pluck('id_member');
-                    $query->whereIn('source_id', $ids);
+                    $query->where('paket', 'like', '%sii%')
+                        ->where('paket', 'like', '%bsq%');
                     break;
             }
         }
@@ -77,17 +69,27 @@ class ManageCivitas extends ManageRecords
     {
         $actions = [
             Actions\Action::make('synchronize')
-                ->label('Synchronize Member')
-                ->icon('heroicon-o-arrow-path')
+                ->label('Add Member')
+                ->icon('heroicon-o-user-plus')
                 ->form([
                     Forms\Components\Select::make('level_angkatan')
-                        ->label('Level Angkatan')
+                        ->label('Semester')
                         ->options([
-                            'Angdas' => 'Angdas',
-                            'Lanjutan' => 'Lanjutan',
-                            'Pasca' => 'Pasca',
+                            'semester_1' => 'Semester 1',
+                            'semester_2' => 'Semester 2',
+                            'semester_3' => 'Semester 3',
                         ])
-                        ->required(),
+                        ->required()
+                        ->native(false),
+                    Forms\Components\Select::make('paket')
+                        ->label('Paket')
+                        ->options([
+                            'sii' => 'SII',
+                            'bsq' => 'BSQ',
+                            'sii + bsq' => 'SII + BSQ',
+                        ])
+                        ->required()
+                        ->native(false),
                     Forms\Components\Select::make('member')
                         ->label('Member')
                         ->multiple()
@@ -101,17 +103,24 @@ class ManageCivitas extends ManageRecords
 
                             $results = [];
 
-                            // Search in MemberPpab
-                            $ppabs = \App\Models\MemberPpab::where('name', 'like', "%{$search}%")
-                                ->orWhere('nama_angkatan', 'like', "%{$search}%")
+                            // Search in MemberPpab (by name or email)
+                            $ppabs = \App\Models\MemberPpab::whereNotNull('id_member')
+                                ->where('id_member', '!=', '')
+                                ->where(function ($q) use ($search) {
+                                    $q->where('name', 'like', "%{$search}%")
+                                        ->orWhere('email', 'like', "%{$search}%")
+                                        ->orWhere('nama_angkatan', 'like', "%{$search}%");
+                                })
                                 ->limit(30)
                                 ->get();
                             foreach ($ppabs as $ppab) {
-                                $results["table_ppab_baru:{$ppab->getKey()}"] = "{$ppab->name} ({$ppab->nama_angkatan}) - PPAB Baru";
+                                // Use the unique auto-increment id, not id_member (which has duplicates)
+                                $results["table_ppab_baru:{$ppab->id}"] = "{$ppab->name} ({$ppab->nama_angkatan}) - PPAB Baru";
                             }
 
-                            // Search in MemberLama
+                            // Search in MemberLama (by name or email)
                             $lamas = \App\Models\MemberLama::where('member_name', 'like', "%{$search}%")
+                                ->orWhere('member_emai', 'like', "%{$search}%")
                                 ->orWhere('member_nama_angkatan', 'like', "%{$search}%")
                                 ->limit(30)
                                 ->get();
@@ -135,10 +144,10 @@ class ManageCivitas extends ManageRecords
                                 [$type, $id] = $parts;
 
                                 if ($type === 'table_ppab_baru') {
-                                    $member = \App\Models\MemberPpab::find($id);
+                                    $member = \App\Models\MemberPpab::where('id', $id)->first();
                                     $labels[$value] = $member ? "{$member->name} ({$member->nama_angkatan}) - PPAB Baru" : $value;
                                 } elseif ($type === 'table_member_lama') {
-                                    $member = \App\Models\MemberLama::where('member_no', $id)->first();
+                                    $member = \App\Models\MemberLama::find($id);
                                     $labels[$value] = $member ? "{$member->member_name} ({$member->member_nama_angkatan}) - Member Lama" : $value;
                                 } else {
                                     $labels[$value] = $value;
@@ -150,6 +159,7 @@ class ManageCivitas extends ManageRecords
                 ])
                 ->action(function (array $data) {
                     $level = strtolower($data['level_angkatan']);
+                    $paket = $data['paket'];
                     $memberValues = $data['member'] ?? [];
 
                     foreach ($memberValues as $memberValue) {
@@ -158,29 +168,47 @@ class ManageCivitas extends ManageRecords
 
                         [$type, $id] = $parts;
 
+                        // Guard against empty IDs (e.g., ppab_member with blank id_member)
+                        if ($id === '' || $id === null) continue;
+
                         // Update or create CivitasPendidikan
                         $civitas = \App\Models\CivitasPendidikan::firstOrNew([
                             'source_type' => $type,
                             'source_id' => $id,
                         ]);
 
-                        if (!$civitas->exists) {
-                            if ($type === 'table_ppab_baru') {
-                                $ppab = \App\Models\MemberPpab::find($id);
+                        if ($type === 'table_ppab_baru') {
+                            $ppab = \App\Models\MemberPpab::where('id', $id)->first();
+                            if (!$civitas->exists) {
                                 $civitas->uuid = ($ppab && isset($ppab->uuid)) ? $ppab->uuid : \Illuminate\Support\Str::uuid()->toString();
-                            } else {
+                            }
+                        } else {
+                            if (!$civitas->exists) {
                                 $civitas->uuid = \Illuminate\Support\Str::uuid()->toString();
                             }
                         }
 
+                        // Set paket and level_angkatan from form selection
+                        $civitas->paket = $paket;
                         $civitas->level_angkatan = $level;
+
                         $civitas->save();
 
                         // Update Master Table
                         if ($type === 'table_ppab_baru') {
-                            \App\Models\MemberPpab::where('id_member', $id)->update(['level_angkatan' => $level]);
+                            // ppab_member.level_angkatan is an ENUM of the same string
+                            // values as civitas ('semester_1' dst) — no conversion needed.
+                            // (Previously this cast to int, which MySQL silently reinterpreted
+                            // as an ENUM index, corrupting the value — e.g. 1 became 'dasar'.)
+                            \App\Models\MemberPpab::where('id', $id)->update([
+                                'level_angkatan' => $level,
+                                'paket' => $paket,
+                            ]);
                         } elseif ($type === 'table_member_lama') {
-                            \App\Models\MemberLama::where('member_no', $id)->update(['level_angkatan' => $level]);
+                            $ml = \App\Models\MemberLama::find($id);
+                            if ($ml) {
+                                $ml->update(['level_angkatan' => $level]);
+                            }
                         }
                     }
 
@@ -189,7 +217,63 @@ class ManageCivitas extends ManageRecords
                         ->title('Members synchronized successfully')
                         ->success()
                         ->send();
-                })
+                }),
+
+            Actions\Action::make('syncLevelFromPpab')
+                ->label('Sync Level & Paket PPAB')
+                ->icon('heroicon-o-arrow-path')
+                ->color('primary')
+                ->requiresConfirmation()
+                ->modalHeading('Sinkronisasi Level & Paket')
+                ->modalDescription('Sinkronkan level_angkatan & paket di civitas dari ppab_member (source: table_ppab_baru). Lanjutkan?')
+                ->modalSubmitActionLabel('Ya, Sinkronkan')
+                ->action(function () {
+                    $updated = 0;
+                    $skipped = 0;
+
+                    $civitasRecords = \App\Models\CivitasPendidikan::where('source_type', 'table_ppab_baru')
+                        ->whereNotNull('source_id')
+                        ->get();
+
+                    foreach ($civitasRecords as $civitas) {
+                        $member = \App\Models\MemberPpab::where('id', $civitas->source_id)->first();
+
+                        if (!$member) {
+                            $skipped++;
+                            continue;
+                        }
+
+                        // ppab_member.level_angkatan adalah ENUM string yang sama persis
+                        // dengan format civitas ('semester_1' dst, atau legacy 'dasar'/
+                        // 'lanjutan'/'pasca') — tidak perlu konversi numerik.
+                        $mappedLevel = !empty($member->level_angkatan) ? $member->level_angkatan : null;
+
+                        $updates = [];
+
+                        // Jangan pernah menimpa civitas.paket dengan NULL — civitas adalah
+                        // acuan (source of truth), ppab_member yang kosong tidak boleh menang.
+                        if (!empty($member->paket) && $civitas->getRawOriginal('paket') !== $member->paket) {
+                            $updates['paket'] = $member->paket;
+                        }
+
+                        if ($mappedLevel !== null && $civitas->getRawOriginal('level_angkatan') !== $mappedLevel) {
+                            $updates['level_angkatan'] = $mappedLevel;
+                        }
+
+                        if (!empty($updates)) {
+                            $civitas->update($updates);
+                            $updated++;
+                        } else {
+                            $skipped++;
+                        }
+                    }
+
+                    \Filament\Notifications\Notification::make()
+                        ->title('Sinkronisasi selesai')
+                        ->body("Updated: {$updated} record(s) • Skipped: {$skipped} record(s)")
+                        ->success()
+                        ->send();
+                }),
         ];
 
         $paketFilter = request()->query('paketFilter');

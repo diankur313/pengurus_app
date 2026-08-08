@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class CivitasPendidikan extends Model
 {
@@ -13,15 +14,18 @@ class CivitasPendidikan extends Model
         'source_type',
         'source_id',
         'level_angkatan',
+        'paket',
     ];
 
     public function getMasterDataAttribute()
     {
         if ($this->source_type === 'table_ppab_baru') {
-            return MemberPpab::find($this->source_id);
+            // MemberPpab's declared primaryKey is id_member, but id_member is not
+            // unique (duplicate registrations), so look up by the real unique id.
+            return MemberPpab::where('id', $this->source_id)->first();
         } elseif ($this->source_type === 'table_member_lama') {
-            // MemberLama uses member_no as the identifier
-            return MemberLama::where('member_no', $this->source_id)->first();
+            // MemberLama uses auto-increment id as the identifier (member_no is not unique)
+            return MemberLama::find($this->source_id);
         }
         return null;
     }
@@ -65,41 +69,19 @@ class CivitasPendidikan extends Model
     {
         $master = $this->masterData;
         if (!$master) return null;
-        
-        return $this->source_type === 'table_ppab_baru' 
-            ? $master->nama_angkatan 
-            : $master->member_nama_angkatan;
-    }
 
-    public function getPaketAttribute()
-    {
-        $master = $this->masterData;
-        if (!$master) return null;
-        
-        return $this->source_type === 'table_ppab_baru' 
-            ? $master->paket 
-            : null;
-    }
-
-    public function getLevelAngkatanAttribute($value)
-    {
         if ($this->source_type === 'table_ppab_baru') {
-            $master = $this->masterData;
-            if ($master) {
-                // Jika nama_angkatan di ppab_member kosong/null, otomatis 'angdas'
-                // Jika ada isinya, gunakan level_angkatan dari ppab_member
-                $resolvedLevel = empty($master->nama_angkatan) ? 'angdas' : $master->level_angkatan;
-                
-                // Normalisasi nilai untuk perbandingan
-                $normalizedValue = is_null($value) ? null : strtolower(trim($value));
-                $normalizedResolvedLevel = is_null($resolvedLevel) ? null : strtolower(trim($resolvedLevel));
-                
-                if ($normalizedValue !== $normalizedResolvedLevel) {
-                    $this->update(['level_angkatan' => $resolvedLevel]);
-                    return $resolvedLevel;
-                }
-            }
+            return DB::connection('ppab')
+                ->table('ppab_nama_angkatans')
+                ->where('id', $master->angkatan)
+                ->value('nama_angkatan');
         }
+
+        return $master->member_nama_angkatan;
+    }
+
+    public function getPaketAttribute($value)
+    {
         return $value;
     }
 

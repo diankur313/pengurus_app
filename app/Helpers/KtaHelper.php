@@ -6,6 +6,7 @@ use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
+use chillerlan\QRCode\Data\QRMatrix;
 use chillerlan\QRCode\Common\EccLevel;
 use chillerlan\QRCode\Output\QRGdImagePNG;
 
@@ -15,7 +16,7 @@ if (!function_exists('generateKtaImageContent')) {
      */
     function generateKtaImageContent(string $nama, string $angkatan, string $nomor): string
     {
-        $manager = new ImageManager(new Driver());
+        $manager = new ImageManager(Driver::class);
         $image   = $manager->decode(public_path('kta_raw.png'));
 
         ktaTextWithBorder($image, $nama,     40, 420, 40);
@@ -23,16 +24,44 @@ if (!function_exists('generateKtaImageContent')) {
         ktaTextWithBorder($image, $nomor,    40, 540, 40);
 
         $qrOptions = new QROptions([
-            'outputInterface' => QRGdImagePNG::class,
-            'outputBase64'    => false,
-            'eccLevel'        => EccLevel::H,
-            'scale'           => 8,
-            'addQuietzone'    => true,
-            'imageTransparent'=> false,
+            'outputInterface'     => QRGdImagePNG::class,
+            'outputBase64'        => false,
+            'eccLevel'            => EccLevel::H,
+            'scale'               => 20,          // naikin dari 8 ke 20+, biar circle digambar tajam
+            'addQuietzone'        => true,
+            'quietzoneSize'       => 1,
+            'imageTransparent'    => false,
+            'drawCircularModules' => true,
+            'circleRadius'        => 0.45,
+        
+            'keepAsSquare' => [
+                QRMatrix::M_FINDER_DARK,
+                QRMatrix::M_FINDER_DOT,
+                QRMatrix::M_ALIGNMENT_DARK,
+            ],
+        
+            'bgColor' => [255, 255, 255],
+        
+            'moduleValues' => [
+                QRMatrix::M_DATA_DARK      => [46, 90, 61],
+                QRMatrix::M_FINDER_DARK    => [46, 90, 61],
+                QRMatrix::M_FINDER_DOT     => [46, 90, 61],
+                QRMatrix::M_ALIGNMENT_DARK => [46, 90, 61],
+                QRMatrix::M_TIMING_DARK    => [46, 90, 61],
+                QRMatrix::M_FORMAT_DARK    => [46, 90, 61],
+                QRMatrix::M_VERSION_DARK   => [46, 90, 61],
+                QRMatrix::M_DARKMODULE     => [46, 90, 61],
+                QRMatrix::M_SEPARATOR      => [255, 255, 255],
+            ],
         ]);
-
-        $qrPng = (new QRCode($qrOptions))->render($nomor);
-        $qrImage = $manager->decode($qrPng);
+        
+        $qrPng   = (new QRCode($qrOptions))->render($nomor);
+        $qrImage = $manager->decodeBinary($qrPng);
+        
+        // resize ke ukuran final yang lo mau taruh di kartu (misal 220x220)
+        // pakai high-quality resize biar circle-nya tetep smooth pas dikecilin
+        $qrImage->resize(220, 220);
+        
         $image->insert($qrImage, 120, 150);
 
         return $image->encodeUsingFileExtension('png')->toString();

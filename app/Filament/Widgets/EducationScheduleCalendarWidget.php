@@ -116,7 +116,7 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
             ->where('end_at', '<=', $fetchInfo['end'])
             ->get()
             ->map(function (EducationSchedule $schedule) {
-                $angkatan = $schedule->level === 'general' ? 'General' : ($schedule->level === 'dasar' ? 'Dasar' : 'Lanjutan');
+                $angkatan = $schedule->levelLabel();
                 $durasi      = $schedule->start_at->format('H:i') . ' - ' . $schedule->end_at->format('H:i');
                 $ustadz      = $schedule->teacher ? ' (' . $schedule->teacher->name . ')' : '';
                 $kehadiran   = $schedule->attendance_mode === 'online' ? ' 🎥' : '';
@@ -216,15 +216,24 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
             // ─── Row 1: Tipe + Kehadiran ──────────────────────────────────
             Forms\Components\Grid::make(2)->schema([
 
-                Forms\Components\Radio::make('type')
-                    ->label('Tipe')
+                Forms\Components\Select::make('type')
+                    ->label('Tipe Jadwal')
                     ->options([
-                        'pembelajaran' => 'Pembelajaran',
+                        'pembelajaran' => 'Pembelajaran (SII)',
+                        'bsq'          => 'BSQ',
                         'quiz'         => 'Quiz',
                     ])
                     ->required()
                     ->live()
-                    ->inline(),
+                    ->native(false)
+                    ->afterStateUpdated(function (Forms\Set $set, ?string $state) {
+                        if ($state === 'bsq') {
+                            $set('teacher_id', null);
+                        }
+                        if ($state !== 'quiz') {
+                            $set('paket', null);
+                        }
+                    }),
 
                 Forms\Components\Radio::make('attendance_mode')
                     ->label('Kehadiran')
@@ -241,8 +250,9 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
             Forms\Components\Select::make('teacher_id')
                 ->label('Ustadz')
                 ->relationship('teacher', 'name')
-                ->required()
                 ->visible(fn (Forms\Get $get) => $get('type') === 'pembelajaran')
+                ->required(fn (Forms\Get $get) => $get('type') === 'pembelajaran')
+                ->dehydrated(fn (Forms\Get $get) => $get('type') === 'pembelajaran')
                 ->searchable()
                 ->preload(),
 
@@ -255,17 +265,28 @@ class EducationScheduleCalendarWidget extends FullCalendarWidget
                 ->preload()
                 ->helperText('Pilih quiz master yang akan digunakan'),
 
+            Forms\Components\Select::make('paket')
+                ->label('Paket')
+                ->multiple()
+                ->options([
+                    'sii'       => 'SII',
+                    'bsq'       => 'BSQ',
+                    'sii + bsq' => 'SII + BSQ',
+                ])
+                ->visible(fn (Forms\Get $get) => $get('type') === 'quiz')
+                ->dehydrated(fn (Forms\Get $get) => $get('type') === 'quiz')
+                ->native(false)
+                ->helperText('Kosongkan jika quiz berlaku untuk semua paket.'),
+
             Forms\Components\TextInput::make('title')
                 ->label('Judul')
-                ->required(),
+                ->visible(fn (Forms\Get $get) => $get('type') !== 'bsq')
+                ->required(fn (Forms\Get $get) => $get('type') !== 'bsq')
+                ->dehydrated(fn (Forms\Get $get) => $get('type') !== 'bsq'),
 
             Forms\Components\Select::make('level')
-                ->label('Angkatan')
-                ->options([
-                    'general'  => 'General (Dasar dan Lanjutan)',
-                    'dasar'    => 'Angkatan Dasar',
-                    'lanjutan' => 'Angkatan Lanjutan',
-                ])
+                ->label('Semester')
+                ->options(\App\Models\EducationSchedule::levelOptions())
                 ->required()
                 ->searchable(),
 

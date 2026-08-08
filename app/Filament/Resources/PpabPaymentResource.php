@@ -4,13 +4,14 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\PpabPaymentResource\Pages;
 use App\Models\PpabPayment;
+use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 
-class PpabPaymentResource extends Resource
+class PpabPaymentResource extends Resource implements HasShieldPermissions
 {
     protected static ?string $model = PpabPayment::class;
 
@@ -20,6 +21,19 @@ class PpabPaymentResource extends Resource
     protected static ?string $modelLabel = 'Pembayaran PPAB';
     protected static ?string $pluralModelLabel = 'Pembayaran PPAB';
     protected static ?int $navigationSort = 3;
+
+    public static function getPermissionPrefixes(): array
+    {
+        return [
+            'view',
+            'view_any',
+            'create',
+            'update',
+            'delete',
+            'delete_any',
+            'report',
+        ];
+    }
 
     public static function form(Form $form): Form
     {
@@ -79,17 +93,26 @@ class PpabPaymentResource extends Resource
                     ->sortable(),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('angkatan')
-                    ->label('Filter by Angkatan')
-                    ->options(fn () => \Illuminate\Support\Facades\DB::connection('ppab')->table('ppab_nama_angkatans')->pluck('nama_angkatan', 'id')->toArray())
+                Tables\Filters\SelectFilter::make('session')
+                    ->label('Filter by Session')
+                    ->options(function (): array {
+                        return \Illuminate\Support\Facades\DB::connection('ppab')
+                            ->table('ppab_sessions')
+                            ->orderByDesc('id')
+                            ->get(['uuid', 'id', 'session_date_start', 'session_date_end'])
+                            ->mapWithKeys(function ($session) {
+                                $start = \Carbon\Carbon::parse($session->session_date_start);
+                                $end = \Carbon\Carbon::parse($session->session_date_end);
+                                return [$session->uuid => "Sesi #{$session->id} - {$start->format('d M Y')} s/d {$end->format('d M Y')}"];
+                            })
+                            ->toArray();
+                    })
                     ->query(function (\Illuminate\Database\Eloquent\Builder $query, array $data): \Illuminate\Database\Eloquent\Builder {
                         if (empty($data['value'])) {
                             return $query;
                         }
 
-                        return $query->whereHas('member', function ($q) use ($data) {
-                            $q->where('angkatan', $data['value']);
-                        });
+                        return $query->where('id_session', $data['value']);
                     }),
             ])
             ->filtersLayout(\Filament\Tables\Enums\FiltersLayout::AboveContent)

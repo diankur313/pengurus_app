@@ -56,12 +56,8 @@ class DispatchMeetReminders extends Command
                 continue;
             }
 
-            // Ambil peserta berdasarkan level angkatan
-            if (strtolower(trim($schedule->level)) === 'general') {
-                $civitas = CivitasPendidikan::all();
-            } else {
-                $civitas = CivitasPendidikan::where('level_angkatan', $schedule->level)->get();
-            }
+            // Ambil peserta berdasarkan level angkatan (general → semester_1 + semester_2)
+            $civitas = CivitasPendidikan::whereIn('level_angkatan', $schedule->levelTargets())->get();
 
             $emailCount = 0;
             foreach ($civitas as $peserta) {

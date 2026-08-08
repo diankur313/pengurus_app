@@ -4,11 +4,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ScannerController;
+use App\Http\Controllers\Api\PpabScannerController;
 use App\Http\Controllers\Api\XenditWebhookController;
 use App\Http\Controllers\Api\InternalCredentialController;
+use App\Http\Controllers\Api\TeacherAttendanceController;
+use App\Http\Controllers\Api\AppVersionController;
 
 // Auth Routes
 Route::post('/auth/login', [AuthController::class, 'login']);
+
+// App Version Check — dikonsumsi app buat force update, publik (dicek sebelum login)
+Route::get('/app-version', [AppVersionController::class, 'check']);
 
 // =====================================================================
 // Xendit Webhook — Unified Entry Point (standar, didaftarkan di Xendit Dashboard)
@@ -38,8 +44,17 @@ Route::get('/cron/update-withdrawable', function (Request $request) {
 // Protected Routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
+
+    // Education attendance (existing)
     Route::post('/attendance/scan', [ScannerController::class, 'scan']);
-    
+
+    // =====================================================================
+    // PPAB Attendance Scanner — untuk aplikasi mobile/scanner QR
+    // =====================================================================
+    Route::post('/ppab/scan', [PpabScannerController::class, 'scan']);
+    Route::get('/ppab/attendance/status', [PpabScannerController::class, 'checkStatus']);
+    Route::get('/ppab/attendance/list', [PpabScannerController::class, 'listBySession']);
+
     // Endpoint untuk mendapatkan profil user (opsional)
     Route::get('/user', function (Request $request) {
         return response()->json([
@@ -47,4 +62,15 @@ Route::middleware('auth:sanctum')->group(function () {
             'data' => $request->user(),
         ]);
     });
+
+    // Auth user info (resmi, struktur konsisten)
+    Route::get('/auth/user', [AuthController::class, 'user']);
+
+    // =====================================================================
+    // Teacher (Ustadz) Attendance — manual, untuk aplikasi mobile
+    // =====================================================================
+    Route::get('/teachers', [TeacherAttendanceController::class, 'teachers']);
+    Route::post('/teacher-attendance', [TeacherAttendanceController::class, 'store']);
+    Route::get('/teacher-attendance', [TeacherAttendanceController::class, 'index']);
+    Route::delete('/teacher-attendance/{id}', [TeacherAttendanceController::class, 'destroy']);
 });

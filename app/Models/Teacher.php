@@ -18,4 +18,9 @@ class Teacher extends Model
     protected $casts = [
         'tanggal_lahir' => 'date',
     ];
+
+    public function attendances()
+    {
+        return $this->hasMany(TeacherAttendance::class);
+    }
 }

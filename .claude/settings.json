@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan *)",
+      "Bash(php -l app/Filament/Resources/AppVersionResource.php)",
+      "Bash(php -l app/Filament/Resources/AppVersionResource/Pages/ManageAppVersions.php)",
+      "Bash(php -l app/Models/AppVersion.php)",
+      "Bash(php -l app/Http/Controllers/Api/AppVersionController.php)",
+      "Bash(php -l app/Policies/AppVersionPolicy.php)",
+      "Bash(php artisan tinker '--execute= *)",
+      "Bash(curl -s \"http://127.0.0.1:8791/api/app-version?platform=android\")",
+      "Bash(curl -s \"http://127.0.0.1:8791/api/app-version?platform=ios\")",
+      "Bash(kill %1)",
+      "Bash(jobs)"
+    ]
+  }
+}

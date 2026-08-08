@@ -64,7 +64,7 @@ class AttendanceResource extends Resource
                                        ->whereIn('source_id', MemberPpab::where('name', 'like', "%{$search}%")->pluck('id_member'));
                                 })->orWhere(function ($q2) use ($search) {
                                     $q2->where('source_type', 'table_member_lama')
-                                       ->whereIn('source_id', MemberLama::where('member_name', 'like', "%{$search}%")->pluck('member_no'));
+                                       ->whereIn('source_id', MemberLama::where('member_name', 'like', "%{$search}%")->pluck('id'));
                                 });
                             });
                         });
@@ -81,7 +81,7 @@ class AttendanceResource extends Resource
                                        ->whereIn('source_id', MemberPpab::where('nama_angkatan', 'like', "%{$search}%")->pluck('id_member'));
                                 })->orWhere(function ($q2) use ($search) {
                                     $q2->where('source_type', 'table_member_lama')
-                                       ->whereIn('source_id', MemberLama::where('member_nama_angkatan', 'like', "%{$search}%")->pluck('member_no'));
+                                       ->whereIn('source_id', MemberLama::where('member_nama_angkatan', 'like', "%{$search}%")->pluck('id'));
                                 });
                             });
                         });
@@ -134,7 +134,7 @@ class AttendanceResource extends Resource
                                        ->whereIn('source_id', MemberPpab::where('nama_angkatan', $val)->pluck('id_member'));
                                 })->orWhere(function ($q2) use ($val) {
                                     $q2->where('source_type', 'table_member_lama')
-                                       ->whereIn('source_id', MemberLama::where('member_nama_angkatan', $val)->pluck('member_no'));
+                                       ->whereIn('source_id', MemberLama::where('member_nama_angkatan', $val)->pluck('id'));
                                 });
                             });
                         });

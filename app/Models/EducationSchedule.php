@@ -15,6 +15,7 @@ class EducationSchedule extends Model
         'type',
         'title',
         'level',
+        'paket',
         'start_at',
         'end_at',
         // Kehadiran
@@ -40,8 +41,50 @@ class EducationSchedule extends Model
         'end_at'        => 'datetime',
         'send_reminder' => 'boolean',
         'reminder_sent' => 'boolean',
+        'paket'         => 'array',
 
     ];
+
+    // ─── Level / Angkatan ──────────────────────────────────────────────────
+    public const LEVEL_GENERAL    = 'general';
+    public const LEVEL_SEMESTER_1 = 'semester_1';
+    public const LEVEL_SEMESTER_2 = 'semester_2';
+    public const LEVEL_SEMESTER_3 = 'semester_3';
+
+    /**
+     * Opsi Angkatan untuk form (add & edit jadwal).
+     * General = berlaku untuk Semester 1, Semester 2, dan Semester 3.
+     */
+    public static function levelOptions(): array
+    {
+        return [
+            self::LEVEL_GENERAL    => 'General (Semester 1, Semester 2 & Semester 3)',
+            self::LEVEL_SEMESTER_1 => 'Semester 1',
+            self::LEVEL_SEMESTER_2 => 'Semester 2',
+            self::LEVEL_SEMESTER_3 => 'Semester 3',
+        ];
+    }
+
+    /**
+     * Label tampilan untuk nilai level saat ini.
+     */
+    public function levelLabel(): string
+    {
+        return self::levelOptions()[$this->level] ?? ucfirst((string) $this->level);
+    }
+
+    /**
+     * Daftar level_angkatan (CivitasPendidikan) yang menjadi target jadwal ini.
+     * General → semester_1 + semester_2 + semester_3.
+     */
+    public function levelTargets(): array
+    {
+        if ($this->level === self::LEVEL_GENERAL) {
+            return [self::LEVEL_SEMESTER_1, self::LEVEL_SEMESTER_2, self::LEVEL_SEMESTER_3];
+        }
+
+        return [$this->level];
+    }
 
     protected static function boot()
     {
@@ -51,6 +94,44 @@ class EducationSchedule extends Model
             if (empty($model->uuid)) {
                 $model->uuid = Str::random(12);
             }
+
+            if ($model->type === 'bsq' && empty($model->title)) {
+                $shortLevel = match ($model->level) {
+                    self::LEVEL_SEMESTER_1 => 'Semester 1',
+                    self::LEVEL_SEMESTER_2 => 'Semester 2',
+                    self::LEVEL_SEMESTER_3 => 'Semester 3',
+                    self::LEVEL_GENERAL    => 'General',
+                    default                => ucfirst((string) $model->level),
+                };
+                $model->title = "BSQ - {$shortLevel}";
+            }
+        });
+
+        // Normalisasi paket: hanya relevan untuk type=quiz, dan "sii + bsq" adalah
+        // shortcut untuk pilih keduanya sekaligus (bukan kategori tersendiri) supaya
+        // matching di e-sii cukup mengecek token atomic 'sii'/'bsq'.
+        static::saving(function ($model) {
+            if ($model->type !== 'quiz') {
+                $model->paket = null;
+                return;
+            }
+
+            $paket = $model->paket;
+            if (empty($paket)) {
+                $model->paket = null;
+                return;
+            }
+
+            $expanded = [];
+            foreach ($paket as $p) {
+                if ($p === 'sii + bsq') {
+                    $expanded[] = 'sii';
+                    $expanded[] = 'bsq';
+                } else {
+                    $expanded[] = $p;
+                }
+            }
+            $model->paket = array_values(array_unique($expanded));
         });
 
         // Hapus Google Calendar event & Meet space saat model didelete

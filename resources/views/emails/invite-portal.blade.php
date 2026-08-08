@@ -226,7 +226,7 @@
                                                                         font-weight: 600;
                                                                         line-height: 1.5;
                                                                     ">
-                                                                        Gunakan password yang Anda pakai ketika mendaftar PPAB
+                                                                        Gunakan password yang kamu pakai ketika mendaftar PPAB atau masuk dengan Google SSO yang alamat emailnya kamu pakai ketika mendaftar PPAB
                                                                     </div>
                                                                 </td>
                                                             </tr>

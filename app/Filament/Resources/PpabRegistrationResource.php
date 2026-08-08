@@ -75,14 +75,20 @@ class PpabRegistrationResource extends Resource
         return $form->schema([
             Forms\Components\Section::make('General Info')
                 ->schema([
-                    Forms\Components\Grid::make(5)->schema([
-                        Forms\Components\DateTimePicker::make('session_date_start')
-                            ->label('Start')
-                            ->required(),
-                        Forms\Components\DateTimePicker::make('session_date_end')
-                            ->label('End')
-                            ->required(),
-                        Forms\Components\TextInput::make('cp')
+Forms\Components\Grid::make(6)->schema([
+Forms\Components\DateTimePicker::make('session_date_start')
+->label('Start')
+->required(),
+Forms\Components\DateTimePicker::make('session_date_end')
+->label('End')
+->required(),
+Forms\Components\TextInput::make('age_limit')
+->label('Batas Umur')
+->numeric()
+->minValue(0)
+->maxValue(100)
+->suffix('tahun'),
+Forms\Components\TextInput::make('cp')
                             ->label('Whatsapp CP')
                             ->maxLength(255),
                         Forms\Components\TextInput::make('group_link_ikhwan')
@@ -176,11 +182,15 @@ class PpabRegistrationResource extends Resource
                     ->label('Start')
                     ->dateTime()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('session_date_end')
-                    ->label('End')
-                    ->dateTime()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('sii_price_full')
+Tables\Columns\TextColumn::make('session_date_end')
+->label('End')
+->dateTime()
+->sortable(),
+Tables\Columns\TextColumn::make('age_limit')
+->label('Batas Umur')
+->formatStateUsing(fn ($state): string => $state !== null ? $state . ' tahun' : '-')
+->sortable(),
+Tables\Columns\TextColumn::make('sii_price_full')
                     ->label('SII Full')
                     ->money('IDR', locale: 'id')
                     ->sortable(),

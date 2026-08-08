@@ -26,10 +26,10 @@ class ScannerController extends Controller
         $qrData = $request->qr_data;
         $parts = explode('|', $qrData);
 
-        if (count($parts) !== 2) {
+        if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Format QR tidak valid. Harap scan QR dari e-sii.',
+                'message' => 'QR tidak valid atau tidak dikenali. Harap scan QR resmi dari e-sii.',
             ], 400);
         }
 
@@ -37,21 +37,21 @@ class ScannerController extends Controller
         $scheduleUuid = trim($parts[1]);
 
         try {
-            // 1. Validasi Civitas (Siswa)
+            // 1. Validasi Civitas (Siswa) — QR palsu/asal akan gagal di sini
             $civitas = CivitasPendidikan::where('uuid', $civitasUuid)->first();
             if (!$civitas) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Data Siswa (Civitas) tidak ditemukan.',
+                    'message' => 'QR tidak valid atau tidak dikenali. Data Siswa (Civitas) tidak ditemukan.',
                 ], 404);
             }
 
-            // 2. Validasi Jadwal (Schedule)
+            // 2. Validasi Jadwal (Schedule) — QR palsu/asal akan gagal di sini
             $schedule = EducationSchedule::where('uuid', $scheduleUuid)->first();
             if (!$schedule) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Jadwal Pembelajaran tidak ditemukan.',
+                    'message' => 'QR tidak valid atau tidak dikenali. Jadwal Pembelajaran tidak ditemukan.',
                 ], 404);
             }
 
@@ -72,7 +72,34 @@ class ScannerController extends Controller
                 ], 409); // 409 Conflict
             }
 
-            // 4. Insert Absensi
+            // 4. Validasi Waktu Jadwal (belum mulai / sudah lewat)
+            $now = now();
+
+            if ($now->lt($schedule->start_at)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Jadwal belum dimulai. Absensi baru bisa dilakukan mulai ' . $schedule->start_at->locale('id')->translatedFormat('d M Y, H:i') . ' WIB.',
+                    'data' => [
+                        'student_name' => $civitas->name ?? 'Siswa',
+                        'schedule_title' => $schedule->title,
+                        'start_at' => $schedule->start_at->format('Y-m-d H:i:s'),
+                    ],
+                ], 422);
+            }
+
+            if ($now->gt($schedule->end_at)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Jadwal sudah berakhir pada ' . $schedule->end_at->locale('id')->translatedFormat('d M Y, H:i') . ' WIB. Absensi tidak dapat dilakukan lagi.',
+                    'data' => [
+                        'student_name' => $civitas->name ?? 'Siswa',
+                        'schedule_title' => $schedule->title,
+                        'end_at' => $schedule->end_at->format('Y-m-d H:i:s'),
+                    ],
+                ], 422);
+            }
+
+            // 5. Insert Absensi
             DB::table('attendances')->insert([
                 'civitas_id' => $civitasUuid,
                 'schedule_id' => $scheduleUuid,

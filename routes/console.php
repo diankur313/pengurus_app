@@ -26,7 +26,7 @@ Schedule::call(function () {
         ->get();
 
     foreach ($reminders as $lock) {
-        $user = \Illuminate\Support\Facades\DB::table('ppab_member')->find($lock->user_id);
+        $user = \Illuminate\Support\Facades\DB::connection('ppab')->table('ppab_member')->find($lock->user_id);
         if ($user && $user->email) {
             try {
                 \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\TicketReminderMail($user, $lock->ticket_type));
@@ -100,6 +100,7 @@ Schedule::call(function () {
                     'source_id' => $ppab->id_member,
                     // Karena auto sync, level dibiarkan null atau ambil dari table member jika ada
                     'level_angkatan' => $ppab->level_angkatan ?? null,
+                    'paket' => $ppab->paket ?? null,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];

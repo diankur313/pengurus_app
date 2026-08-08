@@ -39,10 +39,10 @@ class ManagePayments extends ManageRecords
     public bool   $va                   = false;
     public bool   $qris                 = false;
     public bool   $cs                   = false;
-    public string $amount_dasar         = '0';
-    public string $amount_lanjutan      = '0';
+    public string $nominal              = '0';
     public bool   $send_reminder        = false;
     public string $reminder_days_before = '';
+    public string $level                = '';
 
     // ─── Kupon form ──────────────────────────────────────────────────────────
     public string $coupon_name        = '';
@@ -78,11 +78,11 @@ class ManagePayments extends ManageRecords
         $this->desc                  = $record->desc ?? '';
         $this->start                 = $record->start?->format('Y-m-d') ?? '';
         $this->end                   = $record->end?->format('Y-m-d') ?? '';
+        $this->level                 = $record->level ?? '';
         $this->va                    = (bool) $record->va;
         $this->qris                  = (bool) $record->qris;
         $this->cs                    = (bool) $record->cs;
-        $this->amount_dasar          = (string) $record->amount_dasar;
-        $this->amount_lanjutan       = (string) $record->amount_lanjutan;
+        $this->nominal               = (string) ($record->level === 'semester_3' ? $record->semester_3 : $record->semester_2);
         $this->send_reminder         = (bool) $record->send_reminder;
         $this->reminder_days_before  = (string) ($record->reminder_days_before ?? '');
         $this->showPaymentModal      = true;
@@ -94,31 +94,40 @@ class ManagePayments extends ManageRecords
             'desc'           => 'required|string|max:255',
             'start'          => 'required|date',
             'end'            => 'required|date|after_or_equal:start',
-            'amount_dasar'   => 'required|numeric|min:0',
-            'amount_lanjutan'=> 'required|numeric|min:0',
+            'nominal'        => 'required|numeric|min:0',
+            'level'          => 'required|in:semester_2,semester_3',
         ], [
             'desc.required'           => 'Deskripsi wajib diisi.',
             'start.required'          => 'Periode mulai wajib diisi.',
             'end.required'            => 'Batas akhir wajib diisi.',
             'end.after_or_equal'      => 'Batas akhir harus setelah periode mulai.',
-            'amount_dasar.required'   => 'Nominal dasar wajib diisi.',
-            'amount_lanjutan.required'=> 'Nominal lanjutan wajib diisi.',
+            'nominal.required'        => 'Nominal wajib diisi.',
+            'level.required'          => 'Level wajib dipilih.',
+            'level.in'                => 'Level tidak valid.',
         ]);
 
         $data = [
             'desc'                  => $this->desc,
             'start'                 => $this->start,
             'end'                   => $this->end,
+            'level'                 => $this->level,
             'va'                    => $this->va,
             'qris'                  => $this->qris,
             'cs'                    => $this->cs,
-            'amount_dasar'          => $this->amount_dasar,
-            'amount_lanjutan'       => $this->amount_lanjutan,
             'send_reminder'         => $this->send_reminder,
             'reminder_days_before'  => $this->send_reminder ? ($this->reminder_days_before ?: null) : null,
             'created_by'            => Auth::id(),
             'status'                => 'active',
         ];
+
+        // Nominal dinamis mengikuti level terpilih
+        if ($this->level === 'semester_3') {
+            $data['semester_3'] = $this->nominal;
+            $data['semester_2'] = 0;
+        } else {
+            $data['semester_2'] = $this->nominal;
+            $data['semester_3'] = 0;
+        }
 
         if ($this->editPaymentId) {
             Payment::findOrFail($this->editPaymentId)->update($data);
@@ -143,11 +152,11 @@ class ManagePayments extends ManageRecords
         $this->desc                 = '';
         $this->start                = '';
         $this->end                  = '';
+        $this->level                = '';
         $this->va                   = false;
         $this->qris                 = false;
         $this->cs                   = false;
-        $this->amount_dasar         = '0';
-        $this->amount_lanjutan      = '0';
+        $this->nominal              = '0';
         $this->send_reminder        = false;
         $this->reminder_days_before = '';
         $this->resetErrorBag();

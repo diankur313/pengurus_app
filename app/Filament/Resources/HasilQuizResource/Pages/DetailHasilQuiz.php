@@ -41,14 +41,10 @@ class DetailHasilQuiz extends Page implements HasTable
         $this->quizTitle = $quiz->title;
 
         $schedule = $quiz->schedules->first();
-        $this->angkatan = $schedule ? match ($schedule->level) {
-            'dasar'    => 'Angkatan Dasar',
-            'lanjutan' => 'Angkatan Lanjutan',
-            default    => ucfirst($schedule->level),
-        } : '-';
+        $this->angkatan = $schedule ? $schedule->levelLabel() : '-';
 
         if ($schedule) {
-            $this->totalSiswa = CivitasPendidikan::where('level_angkatan', $schedule->level)->count();
+            $this->totalSiswa = CivitasPendidikan::whereIn('level_angkatan', $schedule->levelTargets())->count();
         }
 
         $this->totalSubmissions = QuizSubmission::where('quiz_id', $quiz->id)->count();

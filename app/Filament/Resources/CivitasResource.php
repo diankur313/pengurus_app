@@ -54,20 +54,42 @@ class CivitasResource extends Resource
     {
         return $form
             ->schema([
-                //
+                Forms\Components\Select::make('level_angkatan')
+                    ->label('Semester')
+                    ->options([
+                        'semester_1' => 'Semester 1',
+                        'semester_2' => 'Semester 2',
+                        'semester_3' => 'Semester 3',
+                    ])
+                    ->required()
+                    ->native(false),
+                Forms\Components\Select::make('paket')
+                    ->label('Paket')
+                    ->options([
+                        'sii' => 'SII',
+                        'bsq' => 'BSQ',
+                        'sii + bsq' => 'SII + BSQ',
+                    ])
+                    ->required()
+                    ->native(false),
             ]);
+    }
+
+    public static function scopeCivitasTable(Builder $query): Builder
+    {
+        return $query->where(function ($q) {
+            $q->where('source_type', 'table_member_lama')
+                ->orWhere(function ($q2) {
+                    $q2->where('source_type', 'table_ppab_baru')
+                        ->whereIn('source_id', MemberPpab::where('stage', 'paid_payment')->pluck('id'));
+                });
+        });
     }
 
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn(Builder $query) => $query->where(function ($q) {
-                $q->where('source_type', 'table_member_lama')
-                    ->orWhere(function ($q2) {
-                        $q2->where('source_type', 'table_ppab_baru')
-                            ->whereIn('source_id', MemberPpab::where('stage', 'paid_payment')->pluck('id_member'));
-                    });
-            }))
+            ->modifyQueryUsing(fn(Builder $query) => static::scopeCivitasTable($query))
             ->columns([
                 ImageColumn::make('photo')
                     ->label('Photo')
@@ -89,10 +111,10 @@ class CivitasResource extends Resource
                         return $query->where(function ($q) use ($search) {
                             $q->where(function ($q1) use ($search) {
                                 $q1->where('source_type', 'table_ppab_baru')
-                                    ->whereIn('source_id', MemberPpab::where('name', 'like', "%{$search}%")->pluck('id_member'));
+                                    ->whereIn('source_id', MemberPpab::where('name', 'like', "%{$search}%")->pluck('id'));
                             })->orWhere(function ($q2) use ($search) {
                                 $q2->where('source_type', 'table_member_lama')
-                                    ->whereIn('source_id', MemberLama::where('member_name', 'like', "%{$search}%")->pluck('member_no'));
+                                    ->whereIn('source_id', MemberLama::where('member_name', 'like', "%{$search}%")->pluck('id'));
                             });
                         });
                     }),
@@ -103,10 +125,10 @@ class CivitasResource extends Resource
                         return $query->where(function ($q) use ($search) {
                             $q->where(function ($q1) use ($search) {
                                 $q1->where('source_type', 'table_ppab_baru')
-                                    ->whereIn('source_id', MemberPpab::where('gender', 'like', "%{$search}%")->pluck('id_member'));
+                                    ->whereIn('source_id', MemberPpab::where('gender', 'like', "%{$search}%")->pluck('id'));
                             })->orWhere(function ($q2) use ($search) {
                                 $q2->where('source_type', 'table_member_lama')
-                                    ->whereIn('source_id', MemberLama::where('member_gend', 'like', "%{$search}%")->pluck('member_no'));
+                                    ->whereIn('source_id', MemberLama::where('member_gend', 'like', "%{$search}%")->pluck('id'));
                             });
                         });
                     }),
@@ -116,10 +138,10 @@ class CivitasResource extends Resource
                         return $query->where(function ($q) use ($search) {
                             $q->where(function ($q1) use ($search) {
                                 $q1->where('source_type', 'table_ppab_baru')
-                                    ->whereIn('source_id', MemberPpab::where('email', 'like', "%{$search}%")->pluck('id_member'));
+                                    ->whereIn('source_id', MemberPpab::where('email', 'like', "%{$search}%")->pluck('id'));
                             })->orWhere(function ($q2) use ($search) {
                                 $q2->where('source_type', 'table_member_lama')
-                                    ->whereIn('source_id', MemberLama::where('member_emai', 'like', "%{$search}%")->pluck('member_no'));
+                                    ->whereIn('source_id', MemberLama::where('member_emai', 'like', "%{$search}%")->pluck('id'));
                             });
                         });
                     }),
@@ -129,24 +151,19 @@ class CivitasResource extends Resource
                         return $query->where(function ($q) use ($search) {
                             $q->where(function ($q1) use ($search) {
                                 $q1->where('source_type', 'table_ppab_baru')
-                                    ->whereIn('source_id', MemberPpab::where('nama_angkatan', 'like', "%{$search}%")->pluck('id_member'));
+                                    ->whereIn('source_id', MemberPpab::where('nama_angkatan', 'like', "%{$search}%")->pluck('id'));
                             })->orWhere(function ($q2) use ($search) {
                                 $q2->where('source_type', 'table_member_lama')
-                                    ->whereIn('source_id', MemberLama::where('member_nama_angkatan', 'like', "%{$search}%")->pluck('member_no'));
+                                    ->whereIn('source_id', MemberLama::where('member_nama_angkatan', 'like', "%{$search}%")->pluck('id'));
                             });
                         });
                     }),
                 TextColumn::make('paket')
                     ->label('Paket')
-                    ->searchable(query: function (Builder $query, string $search): Builder {
-                        return $query->where(function ($q) use ($search) {
-                            $q->where('source_type', 'table_ppab_baru')
-                                ->whereIn('source_id', MemberPpab::where('paket', 'like', "%{$search}%")->pluck('id_member'));
-                        });
-                    }),
+                    ->searchable(),
                 TextColumn::make('level_angkatan')
-                    ->label('Level')
-                    ->formatStateUsing(fn($state) => ucfirst($state))
+                    ->label('Semester')
+                    ->formatStateUsing(fn($state) => ucwords(str_replace('_', ' ', $state)))
                     ->searchable()
                     ->sortable(),
             ])
@@ -154,6 +171,7 @@ class CivitasResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\EditAction::make(),
                 Tables\Actions\Action::make('invite_portal')
                     ->label('Undang Portal')
                     ->icon('heroicon-o-envelope')

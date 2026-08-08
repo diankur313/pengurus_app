@@ -73,15 +73,15 @@ class PaymentResource extends Resource
             Forms\Components\Section::make('💰 Nominal')
                 ->schema([
                     Forms\Components\Grid::make(2)->schema([
-                        Forms\Components\TextInput::make('amount_dasar')
-                            ->label('Nominal Angkatan Dasar')
+                        Forms\Components\TextInput::make('semester_2')
+                            ->label('Nominal Semester 2')
                             ->numeric()
                             ->prefix('Rp')
                             ->default(0)
                             ->required(),
 
-                        Forms\Components\TextInput::make('amount_lanjutan')
-                            ->label('Nominal Angkatan Lanjutan')
+                        Forms\Components\TextInput::make('semester_3')
+                            ->label('Nominal Semester 3')
                             ->numeric()
                             ->prefix('Rp')
                             ->default(0)
@@ -143,13 +143,13 @@ class PaymentResource extends Resource
                     ->label('CS')
                     ->boolean(),
 
-                Tables\Columns\TextColumn::make('amount_dasar')
-                    ->label('Dasar')
+                Tables\Columns\TextColumn::make('semester_2')
+                    ->label('Semester 2')
                     ->money('IDR')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('amount_lanjutan')
-                    ->label('Lanjutan')
+                Tables\Columns\TextColumn::make('semester_3')
+                    ->label('Semester 3')
                     ->money('IDR')
                     ->sortable(),
 

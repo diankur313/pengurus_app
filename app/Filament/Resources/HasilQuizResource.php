@@ -60,17 +60,14 @@ class HasilQuizResource extends Resource
                     ->getStateUsing(function (Quiz $record): string {
                         $schedule = $record->schedules->first();
                         if (!$schedule) return '-';
-                        return match ($schedule->level) {
-                            'dasar'    => 'Angkatan Dasar',
-                            'lanjutan' => 'Angkatan Lanjutan',
-                            default    => ucfirst($schedule->level),
-                        };
+                        return $schedule->levelLabel();
                     })
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
-                        'Angkatan Dasar'    => 'info',
-                        'Angkatan Lanjutan' => 'warning',
-                        default             => 'gray',
+                        'Semester 1' => 'info',
+                        'Semester 2' => 'warning',
+                        'Semester 3' => 'danger',
+                        default      => 'gray',
                     }),
 
                 TextColumn::make('progress')
@@ -80,7 +77,7 @@ class HasilQuizResource extends Resource
                         if (!$schedule) {
                             return '0|0|0';
                         }
-                        $total   = CivitasPendidikan::where('level_angkatan', $schedule->level)->count();
+                        $total   = CivitasPendidikan::whereIn('level_angkatan', $schedule->levelTargets())->count();
                         $done    = QuizSubmission::where('quiz_id', $record->id)->count();
                         $percent = $total > 0 ? round(($done / $total) * 100) : 0;
                         return "{$done}|{$total}|{$percent}";
@@ -130,8 +127,9 @@ class HasilQuizResource extends Resource
                 Tables\Filters\SelectFilter::make('angkatan')
                     ->label('Angkatan')
                     ->options([
-                        'dasar'    => 'Angkatan Dasar',
-                        'lanjutan' => 'Angkatan Lanjutan',
+                        'semester_1' => 'Semester 1',
+                        'semester_2' => 'Semester 2',
+                        'semester_3' => 'Semester 3',
                     ])
                     ->query(fn (\Illuminate\Database\Eloquent\Builder $query, array $data): \Illuminate\Database\Eloquent\Builder =>
                         filled($data['value'])

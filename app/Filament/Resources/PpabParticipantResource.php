@@ -33,7 +33,137 @@ class PpabParticipantResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            // Tambahkan field form di sini
+            Forms\Components\Section::make('Informasi Utama')
+                ->schema([
+                    Forms\Components\TextInput::make('name')
+                        ->label('Nama Lengkap')
+                        ->required()
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('email')
+                        ->label('Email')
+                        ->email()
+                        ->required()
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('whatsapp')
+                        ->label('No. WhatsApp')
+                        ->tel()
+                        ->maxLength(20),
+                    Forms\Components\Select::make('gender')
+                        ->label('Gender')
+                        ->options([
+                            'laki-laki' => 'Laki-laki',
+                            'perempuan' => 'Perempuan',
+                        ]),
+                    Forms\Components\DatePicker::make('tgl_lahir')
+                        ->label('Tanggal Lahir'),
+                    Forms\Components\TextInput::make('realage')
+                        ->label('Umur (Tahun)')
+                        ->numeric(),
+                    Forms\Components\Select::make('goldar')
+                        ->label('Golongan Darah')
+                        ->options([
+                            'A' => 'A',
+                            'B' => 'B',
+                            'AB' => 'AB',
+                            'O' => 'O',
+                        ]),
+                    Forms\Components\Select::make('sudah_bekerja')
+                        ->label('Status Pekerjaan')
+                        ->options([
+                            '0' => 'Belum Bekerja',
+                            '1' => 'Sudah Bekerja',
+                        ]),
+                    Forms\Components\TextInput::make('status')
+                        ->label('Status Akun')
+                        ->maxLength(50),
+                    Forms\Components\TextInput::make('ktp')
+                        ->label('Nomor KTP')
+                        ->maxLength(20),
+                ])
+                ->columns(2),
+
+            Forms\Components\Section::make('Angkatan & Registrasi')
+                ->schema([
+                    Forms\Components\TextInput::make('angkatan')
+                        ->label('Angkatan')
+                        ->numeric(),
+                    Forms\Components\TextInput::make('nama_angkatan')
+                        ->label('Nama Angkatan')
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('referral_source')
+                        ->label('Sumber Informasi')
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('referral_source_detail')
+                        ->label('Detail Sumber Informasi')
+                        ->maxLength(255),
+                ])
+                ->columns(2),
+
+            Forms\Components\Section::make('Paket Purchase Pembelajaran')
+                ->description('Pilih paket pembelajaran yang dibeli oleh peserta')
+                ->schema([
+                    Forms\Components\Select::make('paket')
+                        ->label('Paket Pembelajaran')
+                        ->options([
+                            'sii' => 'SII (Studi Islam Intensif)',
+                            'bsq' => 'BSQ (Bimbingan Studi Qur\'an)',
+                            'sii + bsq' => 'SII + BSQ',
+                        ]),
+                    Forms\Components\Select::make('stage')
+                        ->label('Status Pembayaran')
+                        ->options([
+                            'paid_payment' => 'Paid (Lunas)',
+                            'pending_payment' => 'Pending',
+                            'expired_payment' => 'Expired',
+                        ]),
+                ])
+                ->columns(2),
+
+            Forms\Components\Section::make('Alamat KTP (TTL)')
+                ->schema([
+                    Forms\Components\Textarea::make('ttl_alamat')
+                        ->label('Alamat')
+                        ->rows(2),
+                    Forms\Components\TextInput::make('ttl_kode_pos')
+                        ->label('Kode Pos')
+                        ->maxLength(10),
+                    Forms\Components\TextInput::make('ttl_provinsi')
+                        ->label('Provinsi')
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('ttl_kota')
+                        ->label('Kota')
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('ttl_kecamatan')
+                        ->label('Kecamatan')
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('ttl_kelurahan')
+                        ->label('Kelurahan')
+                        ->maxLength(255),
+                ])
+                ->columns(2),
+
+            Forms\Components\Section::make('Alamat Domisili')
+                ->schema([
+                    Forms\Components\Textarea::make('domisili_alamat')
+                        ->label('Alamat')
+                        ->rows(2),
+                    Forms\Components\TextInput::make('domisili_kode_pos')
+                        ->label('Kode Pos')
+                        ->maxLength(10),
+                    Forms\Components\TextInput::make('domisili_provinsi')
+                        ->label('Provinsi')
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('domisili_kota')
+                        ->label('Kota')
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('domisili_kecamatan')
+                        ->label('Kecamatan')
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('domisili_kelurahan')
+                        ->label('Kelurahan')
+                        ->maxLength(255),
+                ])
+                ->columns(2),
         ]);
     }
 
